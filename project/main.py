@@ -1,14 +1,14 @@
 """
-Entry point for the single-agent ChildOps build.
+Entry point for MyAgent — single-agent school operations assistant.
 
     python main.py triage                # check new school email, act on it
     python main.py rundown                # today's calendar + email briefing
     python main.py achievements           # what got accomplished recently
     python main.py rundown --review       # then open the approval review loop
 
-CHILDOPS_MODE=demo (default) makes real OpenAI calls but fakes the
+MYAGENT_MODE=demo (default) makes real OpenAI calls but fakes the
 Google side (in-memory calendar + seeded sample emails) so you can run all
-three modes without Google OAuth. CHILDOPS_MODE=live polls your real Gmail
+three modes without Google OAuth. MYAGENT_MODE=live polls your real Gmail
 and writes to your real Calendar.
 """
 from __future__ import annotations
@@ -89,7 +89,7 @@ def main() -> None:
 
     result = agent.invoke({"messages": [{"role": "user", "content": MODE_INSTRUCTIONS[args.run_mode]}]})
     final_message = result["messages"][-1]
-    print(f"\n=== ChildOps agent [{args.run_mode}] ===\n")
+    print(f"\n=== MyAgent [{args.run_mode}] ===\n")
     print(final_message.content)
 
     if args.review:

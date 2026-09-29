@@ -1,4 +1,4 @@
-# ChildOps — single-agent build
+# MyAgent — single-agent school operations assistant
 
 One autonomous agent that handles a parent's school operations: it triages
 school email, keeps the calendar conflict-free, tracks open tasks across
@@ -38,7 +38,7 @@ tools run in.
 | `log_task` / `list_open_tasks` / `mark_task_done` | real, disk-backed | memory across runs |
 | `log_achievement` / `list_recent_achievements` | real, disk-backed | what makes the summaries possible |
 
-In `CHILDOPS_MODE=live`, the email and calendar tools hit your real Gmail
+In `MYAGENT_MODE=live`, the email and calendar tools hit your real Gmail
 and Google Calendar instead; the rest are identical.
 
 ### Three ways to run it

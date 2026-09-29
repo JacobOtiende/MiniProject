@@ -1,5 +1,5 @@
 """
-In-memory email store for CHILDOPS_MODE=demo, mirroring demo_calendar.py's
+In-memory email store for MYAGENT_MODE=demo, mirroring demo_calendar.py's
 role: same call shape the agent's tools expect, no live Gmail needed. Seeded
 from data/sample_emails.json with fabricated timestamps and read-flags so
 both "what's new" (triage) and "what happened recently" (rundown,

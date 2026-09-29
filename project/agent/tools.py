@@ -90,7 +90,7 @@ def build_tools(deps):
         """Create a real calendar event. Only call this after checking for
         conflicts with check_calendar_conflict."""
         return calendar_tool.create_event(
-            deps.calendar_service, deps.calendar_id, title, start_iso, end_iso, description, source_agent="ChildOps agent"
+            deps.calendar_service, deps.calendar_id, title, start_iso, end_iso, description, source_agent="MyAgent"
         )
 
     @tool

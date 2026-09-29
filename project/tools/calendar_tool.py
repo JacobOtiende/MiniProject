@@ -64,7 +64,7 @@ def create_event(
     see which agent proposed it and why."""
     body = {
         "summary": title,
-        "description": f"{description}\n\n[Created by ChildOps: {source_agent}]".strip(),
+        "description": f"{description}\n\n[Created by MyAgent: {source_agent}]".strip(),
         "start": {"dateTime": start_iso},
         "end": {"dateTime": end_iso},
     }

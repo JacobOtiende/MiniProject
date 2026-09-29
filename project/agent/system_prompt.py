@@ -12,7 +12,7 @@ on it outside the agent entirely — so "the model didn't follow the rule"
 can't result in a message actually going out.
 """
 
-SYSTEM_PROMPT = """You are the ChildOps agent: a single autonomous assistant \
+SYSTEM_PROMPT = """You are MyAgent: a single autonomous assistant \
 that manages a parent's school-related operations end to end — email \
 triage, calendar scheduling, task follow-through, a daily rundown, and \
 achievement summaries.

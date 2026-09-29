@@ -1,7 +1,7 @@
 """
 An in-memory calendar with the same call surface as the real Google Calendar
 service object (.events().list/insert/patch().execute()), used only in
-CHILDOPS_MODE=demo so you can see real LLM reasoning end to end without
+MYAGENT_MODE=demo so you can see real LLM reasoning end to end without
 first setting up Google OAuth. Swap for auth.google_auth.build_calendar_service
 to go live — no other code changes needed, since tools/calendar_tool.py only
 calls this generic surface.

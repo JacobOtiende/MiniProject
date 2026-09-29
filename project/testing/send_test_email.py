@@ -1,11 +1,11 @@
 """
 Sends REAL emails, over real SMTP, into your fake Gmail test account — so
-School Agent's live Gmail polling (tools/gmail_tool.py) has something
+MyAgent's live Gmail polling (tools/gmail_tool.py) has something
 genuine to classify instead of the in-memory demo replay.
 
-This is a separate, throwaway SENDER account, not the account ChildOps
+This is a separate, throwaway SENDER account, not the account MyAgent
 reads from. You need two mailboxes to test this properly: the fake
-"parent" Gmail account ChildOps polls (already set up for live mode in the
+"parent" Gmail account MyAgent polls (already set up for live mode in the
 main README), and a second account that plays "the school" and sends into
 it. The sender doesn't have to be Gmail — any account you can get SMTP
 credentials for works, since you're just relaying a message into the

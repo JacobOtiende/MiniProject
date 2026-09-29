@@ -1,5 +1,5 @@
 """
-Central configuration for ChildOps, loaded from environment variables / .env.
+Central configuration for MyAgent, loaded from environment variables / .env.
 
 Nothing here is a stub: every value is read at import time so a misconfigured
 deployment fails fast and loudly rather than silently falling back to mocked
@@ -37,9 +37,9 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    mode = os.environ.get("CHILDOPS_MODE", "demo").lower()
+    mode = os.environ.get("MYAGENT_MODE", "demo").lower()
     if mode not in ("demo", "live"):
-        raise RuntimeError(f"CHILDOPS_MODE must be 'demo' or 'live', got {mode!r}")
+        raise RuntimeError(f"MYAGENT_MODE must be 'demo' or 'live', got {mode!r}")
 
     allowlist_raw = os.environ.get("SCHOOL_SENDER_ALLOWLIST", "")
     allowlist = [s.strip() for s in allowlist_raw.split(",") if s.strip()]
@@ -48,7 +48,7 @@ def load_settings() -> Settings:
     # inject a fake), but live mode must fail fast without one.
     openai_key = os.environ.get("OPENAI_API_KEY", "")
     if mode == "live" and not openai_key:
-        raise RuntimeError("OPENAI_API_KEY is required when CHILDOPS_MODE=live")
+        raise RuntimeError("OPENAI_API_KEY is required when MYAGENT_MODE=live")
 
     return Settings(
         openai_api_key=openai_key,
@@ -61,5 +61,5 @@ def load_settings() -> Settings:
         school_sender_allowlist=allowlist,
         target_calendar_id=os.environ.get("TARGET_CALENDAR_ID", "primary"),
         mode=mode,
-        openai_model=os.environ.get("CHILDOPS_MODEL", "gpt-4o"),
+        openai_model=os.environ.get("MYAGENT_MODEL", "gpt-4o"),
     )
