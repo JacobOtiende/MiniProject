@@ -1,0 +1,33 @@
+# Environment & credentials
+.env
+.env.local
+credentials/
+credentials.json
+token.json
+client_secret.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+project/data/pending_approvals.json
+project/.env
