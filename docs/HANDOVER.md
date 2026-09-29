@@ -25,7 +25,8 @@
 
 ## In Progress
 
-- 🔄 Live-mode testing (needs real Gmail/Calendar setup and test fixtures)
+- 🔄 Gmail draft integration: Email drafts now saved directly to Gmail drafts folder instead of local JSON queue
+- 🔄 Live-mode OAuth re-authentication: Need to approve new `gmail.modify` scope for draft creation
 
 ---
 
@@ -57,25 +58,19 @@
 
 - Demo mode uses hardcoded sample emails; rerunning triage reprocesses them.
 - Google OAuth token expires every 7 days in Testing mode (delete `credentials/token.json` and sign in again to refresh).
+- OAuth scopes were updated to include `gmail.modify` for draft creation (2026-09-28). Cached token will be invalid; delete `credentials/token.json` to trigger re-authentication on next run.
 - System prompt assumes certain email formats and calendar event metadata; edge cases may confuse the agent.
 
 ---
 
 ## Immediate Next Action
 
-1. **Initialize a git repository** at `SingleAgentOps/` (or check if childops should be a submodule / separate repo).
-2. **Run demo mode to verify stability:**
-   ```bash
-   cd SingleAgentOps/childops
-   pip install -r requirements.txt
-   python main.py triage
-   python main.py rundown
-   python main.py achievements
-   ```
-3. **Set up live-mode Google Cloud credentials** (see project/README.md § "Google Cloud setup for live mode").
-4. **Send test fixture emails** using `testing/send_test_email.py` to a real Gmail inbox.
-5. **Run live-mode triage and record behavior** in `docs/DAILY_LOG.md`.
-6. **Write up findings** in project evaluation (system prompt adherence, tool sequence quality, error handling).
+**Approve Gmail OAuth scope expansion for draft creation:**
+
+1. When you run `python main.py` next, you'll see a browser authentication prompt asking to approve the new `gmail.modify` scope.
+2. Click "Allow" to grant permission to create drafts.
+3. The token will be cached at `credentials/token.json` for future runs.
+4. After approval, test live mode: `python main.py triage --review` will show drafts created in your Gmail drafts folder instead of the local queue.
 
 ---
 

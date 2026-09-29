@@ -100,3 +100,18 @@ def fetch_recent_school_emails(gmail_service, allowlist: list[str], since_iso: s
     and achievement summary, where the agent needs the day's full picture,
     not just what hasn't been opened yet."""
     return _fetch(gmail_service, _build_query(allowlist, unread_only=False, since_iso=since_iso), max_results)
+
+
+def create_draft(gmail_service, to: str, subject: str, body: str) -> str:
+    """Create a draft email in Gmail. Returns the draft's message ID."""
+    from email.mime.text import MIMEText
+
+    message = MIMEText(body)
+    message['to'] = to
+    message['subject'] = subject
+
+    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    draft = {'message': {'raw': raw}}
+
+    result = gmail_service.users().drafts().create(userId='me', body=draft).execute()
+    return result['id']

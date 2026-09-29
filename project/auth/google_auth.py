@@ -18,18 +18,20 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-# Read-only Gmail (School Agent never needs to send/modify mail itself —
-# that's the whole point of the human-in-the-loop email gate) plus full
-# Calendar access (Calendar Agent needs to create/update/query events).
+# Gmail: read emails and create drafts (send via Gmail, not directly)
+# plus full Calendar access (create/update/query events).
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/calendar",
 ]
 
 
 def get_credentials(client_secrets_path: str, token_path: str) -> Credentials:
     """Return valid user credentials, running the OAuth consent flow
-    only if no cached/refreshable token exists yet."""
+    only if no cached/refreshable token exists yet. Uses Firefox for auth."""
+    import webbrowser
+
     creds: Credentials | None = None
 
     if os.path.exists(token_path):
@@ -47,7 +49,9 @@ def get_credentials(client_secrets_path: str, token_path: str) -> Credentials:
                     "GOOGLE_OAUTH_CLIENT_SECRETS at it. See README.md."
                 )
             flow = InstalledAppFlow.from_client_secrets_file(client_secrets_path, SCOPES)
-            creds = flow.run_local_server(port=0)
+            # Register Firefox and use it for OAuth browser
+            webbrowser.register('firefox', None, webbrowser.BackgroundBrowser('C:\\Program Files\\Mozilla Firefox\\firefox.exe'))
+            creds = flow.run_local_server(port=0, browser='firefox')
 
         os.makedirs(os.path.dirname(token_path) or ".", exist_ok=True)
         with open(token_path, "w") as token_file:

@@ -47,11 +47,11 @@ MODE_INSTRUCTIONS = {
 
 def build_deps(settings, args) -> Deps:
     model = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key)
-    approval_queue = ApprovalQueue(path="./data/pending_approvals.json")
     task_log = TaskLog(path="./data/task_log.json")
 
     if settings.mode == "demo":
         now = datetime.now()
+        approval_queue = ApprovalQueue(path="./data/pending_approvals.json", gmail_service=None)
         return Deps(
             mode="demo",
             model=model,
@@ -65,6 +65,7 @@ def build_deps(settings, args) -> Deps:
 
     gmail_service = build_gmail_service(settings.google_oauth_client_secrets, settings.google_oauth_token_path)
     calendar_service = build_calendar_service(settings.google_oauth_client_secrets, settings.google_oauth_token_path)
+    approval_queue = ApprovalQueue(path="./data/pending_approvals.json", gmail_service=gmail_service)
     return Deps(
         mode="live",
         model=model,

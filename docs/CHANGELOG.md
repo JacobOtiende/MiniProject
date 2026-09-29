@@ -1,5 +1,21 @@
 # MiniProject — Changelog
 
+## [2026-09-28] Gmail Draft Integration
+
+### Added
+- Email drafts now saved directly to Gmail drafts folder (gmail_tool.py: create_draft function)
+- ApprovalQueue now accepts gmail_service and creates real Gmail drafts on enqueue
+
+### Changed
+- OAuth scopes expanded to include gmail.modify for draft creation
+- ApprovalQueue stores Gmail draft ID in local queue for reference
+- Red alert loop displays Gmail draft location and ID
+
+### Fixed
+- Permission scope issue: updated SCOPES in auth/google_auth.py to include gmail.modify
+
+---
+
 ## [2026-09-28] Unified Release
 
 ### Added

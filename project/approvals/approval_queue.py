@@ -3,6 +3,9 @@ The "red alert that keeps popping until you respond" mechanism from the
 design: a persistent, disk-backed queue of drafted-but-unsent emails, plus
 a reviewer loop that keeps re-surfacing anything still pending.
 
+Drafts are saved directly to Gmail's drafts folder. The local queue tracks
+which drafts are pending approval, with the Gmail draft ID for reference.
+
 A real deployment would push this as a mobile notification; that needs a
 notification service and a always-on backend, which is out of scope for a
 course project. A polling CLI loop that won't let you ignore a pending
@@ -19,24 +22,51 @@ from typing import Any
 
 
 class ApprovalQueue:
-    def __init__(self, path: str = "./data/pending_approvals.json"):
+    def __init__(self, path: str = "./data/pending_approvals.json", gmail_service: Any = None):
         self.path = path
+        self.gmail_service = gmail_service
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         if not os.path.exists(path):
             self._save({})
 
     def _load(self) -> dict[str, Any]:
-        with open(self.path) as f:
-            return json.load(f)
+        try:
+            with open(self.path) as f:
+                content = f.read()
+                if not content.strip():
+                    return {}
+                return json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return {}
 
     def _save(self, data: dict[str, Any]) -> None:
         with open(self.path, "w") as f:
             json.dump(data, f, indent=2)
 
     def enqueue(self, draft: dict[str, Any]) -> str:
+        from tools.gmail_tool import create_draft
+
         data = self._load()
         approval_id = str(uuid.uuid4())
-        data[approval_id] = {"draft": draft, "status": "pending"}
+
+        # Create the draft in Gmail if service is available (live mode)
+        gmail_draft_id = None
+        if self.gmail_service:
+            try:
+                gmail_draft_id = create_draft(
+                    self.gmail_service,
+                    to=draft["to"],
+                    subject=draft["subject"],
+                    body=draft["body"]
+                )
+            except Exception as e:
+                print(f"Warning: could not save draft to Gmail: {e}")
+
+        data[approval_id] = {
+            "draft": draft,
+            "gmail_draft_id": gmail_draft_id,
+            "status": "pending"
+        }
         self._save(data)
         return approval_id
 
@@ -78,7 +108,9 @@ def run_red_alert_loop(queue: ApprovalQueue, poll_seconds: int = 10, max_polls: 
         print(f"\n RED ALERT: {len(pending)} email draft(s) awaiting your review ")
         for approval_id, entry in pending.items():
             draft = entry["draft"]
-            print(f"\n[{approval_id}]\nTo: {draft['to']}\nSubject: {draft['subject']}\n\n{draft['body']}\n")
+            gmail_draft_id = entry.get("gmail_draft_id")
+            location_note = f" (saved to Gmail drafts: {gmail_draft_id})" if gmail_draft_id else " (demo mode)"
+            print(f"\n[{approval_id}]{location_note}\nTo: {draft['to']}\nSubject: {draft['subject']}\n\n{draft['body']}\n")
             choice = input("Approve and send (a) / Edit body then send (e) / Reject (r) / Later (Enter): ").strip().lower()
             if choice == "a":
                 queue.approve(approval_id)
