@@ -79,7 +79,7 @@ def build_deps(settings, args) -> Deps:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("run_mode", choices=["triage", "rundown", "achievements"])
+    parser.add_argument("run_mode", nargs="?", default="triage", choices=["triage", "rundown", "achievements"], help="Action to run (default: triage)")
     parser.add_argument("--review", action="store_true", help="Open the pending-approval review loop after running.")
     args = parser.parse_args()
 
