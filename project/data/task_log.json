@@ -1,9 +1,32 @@
 {
-  "tasks": {},
+  "tasks": {
+    "3cc91db9": {
+      "description": "Express interest in Shelf Buddies for your child and request an application.",
+      "due_date": "2026-10-04",
+      "status": "open",
+      "logged_at": "2026-09-29T02:58:43.181381+00:00"
+    },
+    "94420aa3": {
+      "description": "Review the latest newsletters and flashlight reading documents from Sarah Lugo. Check for any required actions.",
+      "due_date": "2026-09-30",
+      "status": "open",
+      "logged_at": "2026-09-29T02:58:43.183384+00:00"
+    }
+  },
   "achievements": {
     "3160fe47": {
       "description": "Logged task to prepare for Spirit Day on Friday.",
       "logged_at": "2026-09-29T02:48:13.897921+00:00"
+    },
+    "27f5a1ad": {
+      "description": "Scheduled Bilingual/ESL/EB Parent Night on October 6th.",
+      "logged_at": "2026-09-29T02:58:46.289678+00:00"
+    },
+    "65954281": {
+      "description": "Logged task to express interest in Shelf Buddies and get application.",
+      "logged_at": "2026-09-29T02:58:46.290764+00:00"
     }
+  }
+}
   }
 }
