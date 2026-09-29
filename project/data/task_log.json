@@ -1,20 +1,9 @@
 {
-  "tasks": {
-    "40011dd3": {
-      "description": "Schedule a pediatric visit and submit doctor's note for child's 3-day absence.",
-      "due_date": null,
-      "status": "open",
-      "logged_at": "2026-09-29T02:41:28.716639+00:00"
-    }
-  },
+  "tasks": {},
   "achievements": {
-    "32f19125": {
-      "description": "Logged task for Math homework packet due Monday.",
-      "logged_at": "2026-09-29T02:41:31.164629+00:00"
-    },
-    "0e016ee4": {
-      "description": "Scheduled PTA meeting on Tuesday at 6:00 PM in the library.",
-      "logged_at": "2026-09-29T02:41:31.164629+00:00"
+    "3160fe47": {
+      "description": "Logged task to prepare for Spirit Day on Friday.",
+      "logged_at": "2026-09-29T02:48:13.897921+00:00"
     }
   }
 }

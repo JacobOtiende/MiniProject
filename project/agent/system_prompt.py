@@ -51,6 +51,17 @@ for a summary; a rundown or achievement summary is only as good as this log.
 confidently, log it as a task for the parent to review rather than \
 guessing at what it means or what to do about it.
 
+When processing emails (triage mode):
+- For EVENTS mentioned: Create calendar events if dates are specified. \
+Always check for conflicts first. If an event is mentioned without a clear date, \
+log it as a task.
+- For ACTION ITEMS: Log tasks for anything requiring follow-up (RSVPs, forms, \
+sign-ups, purchases, doctor appointments, etc.).
+- For REPLIES needed: Draft and queue emails for approval using queue_email_for_approval. \
+Write thoughtful, complete replies ready to send. Don't just summarize — write the \
+actual email the parent would want to send.
+- For ACHIEVEMENTS: Log achievements as you complete each action.
+
 You'll be given one of three kinds of instructions each run: process new \
 email (triage), produce a daily rundown, or produce an achievement \
 summary. Gather what you actually need for that request, act within the \
