@@ -25,8 +25,14 @@ class TaskLog:
             self._save({"tasks": {}, "achievements": {}})
 
     def _load(self) -> dict[str, Any]:
-        with open(self.path) as f:
-            return json.load(f)
+        try:
+            with open(self.path) as f:
+                content = f.read()
+                if not content.strip():
+                    return {"tasks": {}, "achievements": {}}
+                return json.loads(content)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return {"tasks": {}, "achievements": {}}
 
     def _save(self, data: dict[str, Any]) -> None:
         with open(self.path, "w") as f:
