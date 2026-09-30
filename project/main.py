@@ -1,51 +1,67 @@
 """
 Entry point for MyAgent — single-agent school operations assistant.
 
-    python main.py triage                # check new school email, act on it
-    python main.py rundown                # today's calendar + email briefing
-    python main.py achievements           # what got accomplished recently
-    python main.py rundown --review       # then open the approval review loop
+    python main.py
+
+One command runs the whole cycle, in order:
+  1. triage        — check new school email and act on it (events, tasks, drafts)
+  2. rundown       — today's calendar + email briefing
+  3. achievements  — what got accomplished recently
+  4. review        — walk through every email draft awaiting your approval
 
 MYAGENT_MODE=demo (default) makes real OpenAI calls but fakes the
-Google side (in-memory calendar + seeded sample emails) so you can run all
-three modes without Google OAuth. MYAGENT_MODE=live polls your real Gmail
+Google side (in-memory calendar + seeded sample emails) so you can run the
+whole cycle without Google OAuth. MYAGENT_MODE=live polls your real Gmail
 and writes to your real Calendar.
 """
 from __future__ import annotations
 
-import argparse
+import sys
 from datetime import datetime
 
 from langchain_openai import ChatOpenAI
 
 from agent.build_agent import build_agent
 from agent.deps import Deps
+from agent.tools import mark_remaining_emails_read, sync_unsynced_tasks
 from approvals.approval_queue import ApprovalQueue, run_red_alert_loop
-from auth.google_auth import build_calendar_service, build_gmail_service
+from auth.google_auth import build_calendar_service, build_gmail_service, build_tasks_service
 from config import load_settings
 from tasks.task_log import TaskLog
 from tools.demo_calendar import InMemoryCalendarService, default_seed_events
 from tools.demo_email import default_seed_emails
+from tools import tasks_tool
+from tools.demo_tasks import InMemoryTasksService
 
-MODE_INSTRUCTIONS = {
+# Run in this order: triage first so the rundown and achievements summary
+# reflect whatever it just created, logged, or drafted.
+PHASE_INSTRUCTIONS = {
     "triage": (
         "Check for new school emails and handle each one using your tools and "
         "judgment, within your policy boundaries. If there's nothing new, say so."
     ),
     "rundown": (
-        "Produce today's rundown: check today's calendar events and recent "
-        "school emails (last 1-2 days), then write a short, clear daily briefing "
-        "covering what's on the calendar today and anything important from email."
+        "Produce today's START-OF-DAY briefing: check today's calendar events, "
+        "your open tasks, and recent school emails (last 1-2 days). Cover what's "
+        "on the calendar today, tasks that are overdue or due today, and the "
+        "high-priority tasks coming up next, soonest first. It is saved as the "
+        "parent's 'Start of day' summary task, so write plain text with simple "
+        "dash bullets — no markdown headings, bold, or tables."
     ),
     "achievements": (
-        "Review your task log and recently logged achievements to determine what "
-        "has actually gotten accomplished recently. Write a concise achievement "
-        "summary a parent could skim in a few seconds."
+        "Produce today's END-OF-DAY wrap-up: review achievements logged today "
+        "and your open tasks. Cover what got done today, what is still open "
+        "(highest priority first), and what is due tomorrow. It is saved as the "
+        "parent's 'End of day' summary task, so write plain text with simple "
+        "dash bullets — no markdown headings, bold, or tables."
     ),
 }
 
+# Phases whose written output becomes a daily summary task in Google Tasks.
+SUMMARY_TASK_FOR_PHASE = {"rundown": "start", "achievements": "end"}
 
-def build_deps(settings, args) -> Deps:
+
+def build_deps(settings) -> Deps:
     model = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key)
     task_log = TaskLog(path="./data/task_log.json")
 
@@ -61,6 +77,7 @@ def build_deps(settings, args) -> Deps:
             task_log=task_log,
             school_sender_allowlist=settings.school_sender_allowlist or ["ourschool.edu"],
             email_store=default_seed_emails(now),
+            tasks_service=InMemoryTasksService(),
         )
 
     gmail_service = build_gmail_service(settings.google_oauth_client_secrets, settings.google_oauth_token_path)
@@ -75,28 +92,50 @@ def build_deps(settings, args) -> Deps:
         task_log=task_log,
         school_sender_allowlist=settings.school_sender_allowlist,
         gmail_service=gmail_service,
+        tasks_service=build_tasks_service(settings.google_oauth_client_secrets, settings.google_oauth_token_path),
     )
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("run_mode", nargs="?", default="triage", choices=["triage", "rundown", "achievements"], help="Action to run (default: triage)")
-    parser.add_argument("--review", action="store_true", help="Open the pending-approval review loop after running.")
-    args = parser.parse_args()
+def _google_tasks_step(what: str, tasks_service, action) -> None:
+    """Google Tasks extras shouldn't abort the run if the API is unavailable."""
+    if tasks_service is None:
+        return
+    try:
+        action()
+    except Exception as e:
+        print(f"Warning: could not {what}: {e}")
 
+
+def main() -> None:
+    # Agent replies can include the priority markers (🔴🟠🟢); don't let a
+    # legacy Windows console codepage crash the run on them.
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     settings = load_settings()
-    deps = build_deps(settings, args)
+    deps = build_deps(settings)
     agent = build_agent(deps)
 
-    result = agent.invoke({"messages": [{"role": "user", "content": MODE_INSTRUCTIONS[args.run_mode]}]})
-    final_message = result["messages"][-1]
-    print(f"\n=== MyAgent [{args.run_mode}] ===\n")
-    print(final_message.content)
+    for phase, instruction in PHASE_INSTRUCTIONS.items():
+        result = agent.invoke({"messages": [{"role": "user", "content": instruction}]})
+        print(f"\n=== MyAgent [{phase}] ===\n")
+        print(result["messages"][-1].content)
+        if phase == "triage":
+            swept = mark_remaining_emails_read(deps)
+            print(f"\n{len(deps.seen_email_ids)} school email(s) triaged and marked read in Gmail"
+                  + (f" ({swept} the agent hadn't marked itself)." if swept else "."))
+            _google_tasks_step("sync tasks to My Tasks", deps.tasks_service, lambda: sync_unsynced_tasks(deps))
+        if phase in SUMMARY_TASK_FOR_PHASE:
+            kind = SUMMARY_TASK_FOR_PHASE[phase]
+            summary = result["messages"][-1].content
+            _google_tasks_step(
+                f"update the {tasks_tool.SUMMARY_KINDS[kind]} summary task",
+                deps.tasks_service,
+                lambda: tasks_tool.upsert_daily_summary(deps.tasks_service, kind, summary, deps.now().date()),
+            )
 
-    if args.review:
-        run_red_alert_loop(deps.approval_queue)
-    elif deps.approval_queue.list_pending():
-        print(f"\n{len(deps.approval_queue.list_pending())} email draft(s) pending your review. Run with --review to see them.")
+    print("\n=== MyAgent [review] ===")
+    # One pass per run: anything left for "Later" stays pending and
+    # alerts again on the next run.
+    run_red_alert_loop(deps.approval_queue, max_polls=1)
 
 
 if __name__ == "__main__":

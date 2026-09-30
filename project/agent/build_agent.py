@@ -17,4 +17,7 @@ from agent.tools import build_tools
 
 def build_agent(deps: Deps):
     tools = build_tools(deps)
-    return create_agent(model=deps.model, tools=tools, system_prompt=SYSTEM_PROMPT)
+    # The model has no clock; without this it can't turn "this Friday" into a due date.
+    today = deps.now().strftime("%A, %Y-%m-%d")
+    system_prompt = f"{SYSTEM_PROMPT}\n\nToday is {today}."
+    return create_agent(model=deps.model, tools=tools, system_prompt=system_prompt)

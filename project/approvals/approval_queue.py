@@ -14,39 +14,33 @@ gets sent without you seeing it, and it won't let you forget it's waiting.
 """
 from __future__ import annotations
 
-import json
 import os
+import threading
 import time
 import uuid
 from typing import Any
+
+import jsonstore
 
 
 class ApprovalQueue:
     def __init__(self, path: str = "./data/pending_approvals.json", gmail_service: Any = None):
         self.path = path
         self.gmail_service = gmail_service
+        self._lock = threading.RLock()  # parallel tool calls share this queue
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         if not os.path.exists(path):
             self._save({})
 
     def _load(self) -> dict[str, Any]:
-        try:
-            with open(self.path) as f:
-                content = f.read()
-                if not content.strip():
-                    return {}
-                return json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            return {}
+        return jsonstore.load(self.path, dict)
 
     def _save(self, data: dict[str, Any]) -> None:
-        with open(self.path, "w") as f:
-            json.dump(data, f, indent=2)
+        jsonstore.save(self.path, data)
 
     def enqueue(self, draft: dict[str, Any]) -> str:
         from tools.gmail_tool import create_draft
 
-        data = self._load()
         approval_id = str(uuid.uuid4())
 
         # Create the draft in Gmail if service is available (live mode)
@@ -62,12 +56,14 @@ class ApprovalQueue:
             except Exception as e:
                 print(f"Warning: could not save draft to Gmail: {e}")
 
-        data[approval_id] = {
-            "draft": draft,
-            "gmail_draft_id": gmail_draft_id,
-            "status": "pending"
-        }
-        self._save(data)
+        with self._lock:
+            data = self._load()
+            data[approval_id] = {
+                "draft": draft,
+                "gmail_draft_id": gmail_draft_id,
+                "status": "pending"
+            }
+            self._save(data)
         return approval_id
 
     def list_pending(self) -> dict[str, Any]:
@@ -75,20 +71,22 @@ class ApprovalQueue:
         return {k: v for k, v in data.items() if v["status"] == "pending"}
 
     def approve(self, approval_id: str, edited_body: str | None = None) -> None:
-        data = self._load()
-        if approval_id not in data:
-            raise KeyError(f"No pending approval with id {approval_id}")
-        if edited_body is not None:
-            data[approval_id]["draft"]["body"] = edited_body
-        data[approval_id]["status"] = "approved"
-        self._save(data)
+        with self._lock:
+            data = self._load()
+            if approval_id not in data:
+                raise KeyError(f"No pending approval with id {approval_id}")
+            if edited_body is not None:
+                data[approval_id]["draft"]["body"] = edited_body
+            data[approval_id]["status"] = "approved"
+            self._save(data)
 
     def reject(self, approval_id: str) -> None:
-        data = self._load()
-        if approval_id not in data:
-            raise KeyError(f"No pending approval with id {approval_id}")
-        data[approval_id]["status"] = "rejected"
-        self._save(data)
+        with self._lock:
+            data = self._load()
+            if approval_id not in data:
+                raise KeyError(f"No pending approval with id {approval_id}")
+            data[approval_id]["status"] = "rejected"
+            self._save(data)
 
     def status(self, approval_id: str) -> str:
         return self._load()[approval_id]["status"]

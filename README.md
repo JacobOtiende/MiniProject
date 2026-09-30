@@ -1,6 +1,6 @@
 # MiniProject
 
-A unified single-agent school operations assistant. One autonomous agent with a comprehensive toolbelt that handles email triage, calendar management, task tracking, and daily briefings.
+A unified single-agent school operations assistant. One autonomous agent with a comprehensive toolbelt that handles email triage, calendar management, task tracking in Google Tasks, and daily start/end-of-day summaries.
 
 **MiniProject harmonizes ChildOps (multi-agent) and SingleAgentOps (single-agent) into one clean, unified implementation** using the proven single-agent architecture with an expanded tool set.
 
@@ -14,23 +14,24 @@ A unified single-agent school operations assistant. One autonomous agent with a 
 
 ## Status
 
-🟢 **Ready for Testing** — Single-agent architecture verified in demo mode. All tools functional. OAuth credentials configured for live mode.
+🟡 **Live testing** — Runs end to end with `python main.py` against real Gmail and Calendar. Google Tasks integration is built and tested with fakes; live use waits on enabling the Google Tasks API in Google Cloud. 24/24 tests pass.
 
 ## Architecture
 
-**One Agent, 12 Tools:**
-- Email triage (Gmail API)
+**One Agent, 13 Tools:**
+- Email triage (Gmail API), marking handled email as read
 - Calendar conflict detection & resolution
 - Calendar event creation
-- Task logging & tracking
+- Task logging to Google My Tasks: agent-chosen priority labels (🔴 [HIGH] / 🟠 [MEDIUM] / 🟢 [LOW]), due dates, date order
+- Daily ☀️ Start of day / 🌙 End of day summary tasks (separate list)
 - Achievement logging
-- Approval queue (human gate)
+- Approval queue (human gate; replies also saved to Gmail drafts)
 - Demo/live mode backends
 
 **Tech Stack:**
 - Python + LangChain + LangGraph
 - OpenAI GPT-4o
-- Google Gmail & Calendar APIs
+- Google Gmail, Calendar & Tasks APIs
 - OAuth authentication
 
 ## Getting Started
@@ -41,9 +42,7 @@ A unified single-agent school operations assistant. One autonomous agent with a 
 cd project
 pip install -r requirements.txt
 cp .env.example .env
-python main.py triage
-python main.py rundown
-python main.py achievements
+python main.py      # triage -> rundown -> achievements -> review, in one run
 ```
 
 **Live mode (Google Cloud setup required):**
@@ -62,10 +61,10 @@ MiniProject/
 │   └── SKILLS_LOG.md
 └── project/
     ├── README.md (full technical guide)
-    ├── main.py (CLI entry point)
+    ├── main.py (entry point: runs the full cycle)
     ├── config.py (environment settings)
     ├── agent/
-    │   ├── build_agent.py (single agent + 12 tools)
+    │   ├── build_agent.py (single agent + 13 tools)
     │   ├── system_prompt.py (policy boundaries)
     │   ├── tools.py (tool definitions)
     │   └── deps.py (Gmail, Calendar, stores)
@@ -74,7 +73,7 @@ MiniProject/
     ├── approvals/ (human approval gate)
     ├── tasks/ (persistent task log)
     ├── testing/ (test fixture sender)
-    ├── tests/ (14 tests, scripted LLM)
+    ├── tests/ (24 tests, scripted LLM)
     └── data/ (sample emails for demo mode)
 ```
 

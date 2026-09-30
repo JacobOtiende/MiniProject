@@ -1,5 +1,58 @@
 # MiniProject — Daily Log
 
+## 2026-09-29
+
+### Objective
+
+Review outputs from the Gmail-draft session, then make the agent a single-command daily assistant that puts prioritized, dated tasks in Google Tasks and keeps the inbox clean.
+
+### Work Completed
+
+- Reviewed outputs: the `gmail.modify` scope had already been approved; a live run created Gmail draft `r4221917666194833533` (Parent Night RSVP).
+- Fixed the approval-queue loader bug (13/14 → 14/14 tests).
+- `python main.py` now runs triage → rundown → wrap-up → review with no arguments; runner scripts removed.
+- Fixed the Calendar `400` (naive datetimes); verified a read-only call against the live Calendar.
+- Built Google Tasks integration: priority labels chosen by the agent with a reason, due dates, date order, de-duplication, completion sync, catch-up sync of unsynced local tasks.
+- Added two daily summary tasks (☀️ Start of day / 🌙 End of day) in their own list.
+- Added `mark_email_read` and the after-triage sweep that marks every triaged school email read.
+- Fixed the SSL crash (thread-unsafe shared `httplib2`); verified with 12 parallel read-only live calls.
+- Fixed task-log corruption from parallel writes (locks + atomic writes + corrupt-file backup).
+- Tool errors are now returned to the model instead of crashing the run.
+- Stopped tracking `data/task_log.json` in git.
+- Tests: 14 → 24, all passing.
+
+### Changes Made
+
+- New: `tools/tasks_tool.py`, `tools/demo_tasks.py`, `jsonstore.py`, `tests/test_tasks_tool.py`.
+- Updated: `main.py`, `agent/tools.py`, `agent/system_prompt.py`, `agent/build_agent.py`, `agent/deps.py`, `auth/google_auth.py`, `approvals/approval_queue.py`, `tasks/task_log.py`, `tools/calendar_tool.py`, `tools/demo_calendar.py`, `tools/gmail_tool.py`, tests, both READMEs.
+- Removed: `run.py`, `run.bat`, `run.sh`.
+
+### Findings
+
+- Repeated live runs created 7 duplicate "Bilingual/ESL/EB Parent Night" calendar events (since deleted by the user). The cause: emails were never marked read, so every run reprocessed them.
+- In a live run, the model did not call `mark_email_read` on its own. That is why the deterministic sweep was added.
+- The agent never knew today's date, which is why earlier tasks had no due dates.
+- The corrupted task log was silently treated as empty and overwritten; the earlier local tasks were lost (the 2026-09-28 tasks still exist in git history).
+- The agent's Google account is `childops2@gmail.com`; tasks appear only in that account.
+
+### Problems / Issues
+
+- Google Tasks API is disabled for Google Cloud project `768142962405`. Every Tasks call returns `403 accessNotConfigured`; tasks are kept locally and will sync once it is enabled.
+- `data/task_log.json` was pushed to the public repo in earlier commits; it is untracked now but still in history.
+
+### Decisions
+
+- Priority is shown as a title label (color marker + text) because Google Tasks has no color, font size, or priority field.
+- Daily summaries live in a separate task list and are not stored in the local task log.
+- Every triaged email is marked read (user request); anything that failed is logged as a task rather than left unread.
+- The review loop runs one pass per run so `python main.py` always finishes.
+
+### Next Session
+
+Enable the Google Tasks API in project `768142962405`, run `python main.py`, and confirm in childops2@gmail.com's Google Tasks that the tasks appear in date order with labels and that both summary tasks exist.
+
+---
+
 ## 2026-09-28 (Session 2)
 
 ### Objective

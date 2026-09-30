@@ -22,4 +22,9 @@ class Deps:
     school_sender_allowlist: list[str] = field(default_factory=list)
     gmail_service: Any = None  # required when mode == "live"
     email_store: Any = None  # required when mode == "demo" (tools.demo_email.InMemoryEmailStore)
+    tasks_service: Any = None  # Google Tasks ("My Tasks"); None skips syncing
+    # Unread school emails handed to the agent this run, and which of those
+    # are now marked read — see agent.tools.mark_remaining_emails_read.
+    seen_email_ids: set[str] = field(default_factory=set)
+    read_email_ids: set[str] = field(default_factory=set)
     now: Callable[[], datetime] = field(default_factory=lambda: datetime.now)

@@ -1,5 +1,35 @@
 # MiniProject — Changelog
 
+## [2026-09-29] Google Tasks, Single Command, Reliability Fixes
+
+### Added
+- Google Tasks integration (`tools/tasks_tool.py`): `log_task` adds each follow-up to the user's "My Tasks" with an agent-chosen priority label (🔴 [HIGH] / 🟠 [MEDIUM] / 🟢 [LOW]), a real due date, and the agent's one-line priority reason in the notes. Tasks are placed in due-date order (undated last) and de-duplicated by title. `mark_task_done` also completes the Google task.
+- Daily summary tasks in a separate "MyAgent Daily Summary" list: ☀️ Start of day (rundown) and 🌙 End of day (wrap-up), updated in place each run.
+- Sync of local tasks that never reached Google Tasks (e.g. logged while the API was unavailable).
+- `mark_email_read` tool, plus an after-triage sweep that marks every school email the agent was shown as read in Gmail.
+- Today's date in the system prompt, so relative dates ("this Friday") become due dates.
+- `jsonstore.py`: atomic JSON saves; an unreadable file is moved aside (`*.corrupt-<time>`) instead of being overwritten.
+- In-memory Google Tasks fake (`tools/demo_tasks.py`); tests grew from 14 to 24.
+
+### Changed
+- `python main.py` (no arguments) runs the whole cycle: triage → start-of-day rundown → end-of-day wrap-up → one approval review pass.
+- Priority is the agent's own judgment (weighs urgency, consequences, required vs. optional, effort) instead of fixed thresholds.
+- A failing tool now returns its error to the model instead of aborting the run.
+- Google API clients use a fresh HTTP connection per request (thread-safe).
+- OAuth: a cached token missing a newly added scope now triggers re-consent automatically. Added the `tasks` scope.
+- `data/task_log.json` is no longer tracked in git (holds real school details).
+
+### Fixed
+- Approval queue could never read its own file (`json.load` after `f.read()`), so every enqueue overwrote earlier drafts and the review loop always said "All clear".
+- Calendar `400 Bad Request`: naive datetimes are now sent with the local UTC offset.
+- `ssl.SSLError: WRONG_VERSION_NUMBER` crash from parallel tool calls sharing one `httplib2` connection.
+- `task_log.json` corruption (and silent data loss) from parallel writes: writes are now locked and atomic.
+
+### Removed
+- `run.py`, `run.bat`, `run.sh` convenience runners (replaced by plain `python main.py`).
+
+---
+
 ## [2026-09-28] Gmail Draft Integration
 
 ### Added

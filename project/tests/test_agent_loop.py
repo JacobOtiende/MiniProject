@@ -199,4 +199,131 @@ def test_calendar_conflict_leads_to_autonomous_alternate_not_double_booking(tmp_
     assert "2026-09-29T10:00:00" in alternates_output
     assert "2026-09-29T09:00:00" not in alternates_output
     assert len(calendar_service._events.created) == 1
-    assert calendar_service._events.created[0]["start"]["dateTime"] == "2026-09-29T10:00:00"
+    # calendar_tool attaches the local UTC offset (Google requires one), so compare instants.
+    created_start = datetime.fromisoformat(calendar_service._events.created[0]["start"]["dateTime"])
+    assert created_start == datetime.fromisoformat("2026-09-29T10:00:00").astimezone()
+
+
+def test_log_task_adds_prioritized_dated_task_to_google_tasks_without_duplicates(tmp_path):
+    from tools.demo_tasks import InMemoryTasksService
+
+    task_args = {"description": "Submit Shelf Buddies application", "priority": "high", "priority_reason": "Program starts Oct 5; spots are limited.", "due_date": "2026-10-04"}
+    responses = [
+        FakeToolCallMessage.with_calls([tool_call("log_task", task_args, "c1")]),
+        # Same task again on a later step (e.g. a re-run) must not duplicate it.
+        FakeToolCallMessage.with_calls([tool_call("log_task", {**task_args, "priority": "medium"}, "c2")]),
+        FakeToolCallMessage.final("Logged the Shelf Buddies application."),
+    ]
+    deps, _, _, task_log = make_deps(tmp_path, responses)
+    deps.tasks_service = InMemoryTasksService()
+    agent = build_agent(deps)
+
+    agent.invoke({"messages": [{"role": "user", "content": "triage"}]})
+
+    google_tasks = list(deps.tasks_service.items.values())
+    assert len(google_tasks) == 1
+    assert google_tasks[0]["title"] == "🔴 [HIGH] Submit Shelf Buddies application"
+    assert google_tasks[0]["due"] == "2026-10-04T00:00:00.000Z"
+    assert google_tasks[0]["notes"].startswith("Priority: High — Program starts Oct 5")
+
+    [local] = task_log.list_open_tasks()
+    assert local["priority"] == "high" and local["due_date"] == "2026-10-04"
+    assert local["google_task_id"] is not None
+
+
+def test_mark_task_done_completes_google_task(tmp_path):
+    from tools.demo_tasks import InMemoryTasksService
+
+    deps, _, _, task_log = make_deps(tmp_path, [])
+    deps.tasks_service = InMemoryTasksService()
+    deps.model = ScriptedChatModel(
+        responses=[
+            FakeToolCallMessage.with_calls(
+                [tool_call("log_task", {"description": "Return field trip form", "priority": "low", "priority_reason": "Optional."}, "c1")]
+            ),
+            FakeToolCallMessage.final("ok"),
+        ]
+    )
+    build_agent(deps).invoke({"messages": [{"role": "user", "content": "triage"}]})
+    [local] = task_log.list_open_tasks()
+
+    deps.model = ScriptedChatModel(
+        responses=[
+            FakeToolCallMessage.with_calls([tool_call("mark_task_done", {"task_id": local["task_id"]}, "c1")]),
+            FakeToolCallMessage.final("done"),
+        ]
+    )
+    build_agent(deps).invoke({"messages": [{"role": "user", "content": "rundown"}]})
+
+    [google_task] = deps.tasks_service.items.values()
+    assert google_task["title"].startswith("🟢 [LOW] ")
+    assert google_task["status"] == "completed"
+
+
+def test_agent_marks_handled_email_read_and_cannot_mark_unlisted_ones(tmp_path):
+    emails = [
+        DemoEmail(
+            message_id="e1",
+            sender="frontdesk@ourschool.edu",
+            subject="Newsletter",
+            body="This week's newsletter is attached.",
+            received_at=FIXED_NOW,
+            read=False,
+        )
+    ]
+    responses = [
+        FakeToolCallMessage.with_calls([tool_call("list_new_school_emails", {}, "c1")]),
+        FakeToolCallMessage.with_calls(
+            [
+                tool_call("mark_email_read", {"message_id": "e1"}, "c2"),
+                tool_call("mark_email_read", {"message_id": "not-a-school-email"}, "c3"),
+            ]
+        ),
+        FakeToolCallMessage.final("Newsletter needs no action; marked read."),
+    ]
+    deps, _, _, _ = make_deps(tmp_path, responses, emails=emails)
+
+    result = build_agent(deps).invoke({"messages": [{"role": "user", "content": "triage"}]})
+
+    assert deps.email_store.fetch_new() == []  # won't be reprocessed next run
+    outputs = [str(m.content) for m in result["messages"] if m.type == "tool"]
+    assert any("Not marked" in o for o in outputs)
+
+
+def test_failing_tool_is_reported_to_the_agent_instead_of_crashing_the_run(tmp_path):
+    responses = [
+        FakeToolCallMessage.with_calls([tool_call("list_todays_calendar_events", {}, "c1")]),
+        FakeToolCallMessage.final("Calendar unavailable today; rundown covers email only."),
+    ]
+    deps, calendar_service, _, _ = make_deps(tmp_path, responses)
+
+    def broken_list(**kwargs):
+        raise ConnectionError("calendar is down")
+
+    calendar_service.events().list = broken_list
+
+    result = build_agent(deps).invoke({"messages": [{"role": "user", "content": "rundown"}]})
+
+    tool_output = next(str(m.content) for m in result["messages"] if m.type == "tool")
+    assert "Error: ConnectionError: calendar is down" in tool_output
+    assert result["messages"][-1].content.startswith("Calendar unavailable")
+
+
+def test_every_listed_email_is_marked_read_after_triage_even_if_agent_forgot(tmp_path):
+    from agent.tools import mark_remaining_emails_read
+
+    emails = [
+        DemoEmail(message_id=f"e{i}", sender="frontdesk@ourschool.edu", subject=f"Note {i}",
+                  body="FYI", received_at=FIXED_NOW, read=False)
+        for i in range(3)
+    ]
+    responses = [
+        FakeToolCallMessage.with_calls([tool_call("list_new_school_emails", {}, "c1")]),
+        FakeToolCallMessage.with_calls([tool_call("mark_email_read", {"message_id": "e0"}, "c2")]),
+        FakeToolCallMessage.final("Handled."),  # forgot e1 and e2
+    ]
+    deps, _, _, _ = make_deps(tmp_path, responses, emails=emails)
+    build_agent(deps).invoke({"messages": [{"role": "user", "content": "triage"}]})
+
+    assert mark_remaining_emails_read(deps) == 2
+    assert deps.email_store.fetch_new() == []

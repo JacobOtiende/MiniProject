@@ -80,12 +80,12 @@ class FakeEventsResource:
 
         if timeMin is None or timeMax is None:
             return _Exec({"items": self.existing_events})
-        window_start = datetime.fromisoformat(timeMin)
-        window_end = datetime.fromisoformat(timeMax)
+        window_start = datetime.fromisoformat(timeMin).astimezone()
+        window_end = datetime.fromisoformat(timeMax).astimezone()
         items = []
         for event in self.existing_events:
-            ev_start = datetime.fromisoformat(event["start"]["dateTime"])
-            ev_end = datetime.fromisoformat(event["end"]["dateTime"])
+            ev_start = datetime.fromisoformat(event["start"]["dateTime"]).astimezone()
+            ev_end = datetime.fromisoformat(event["end"]["dateTime"]).astimezone()
             if ev_start < window_end and ev_end > window_start:
                 items.append(event)
         return _Exec({"items": items})

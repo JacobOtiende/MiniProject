@@ -4,3 +4,6 @@ __pycache__/
 credentials/
 data/pending_approvals.json
 .pytest_cache/
+data/task_log.json
+data/*.corrupt-*
+data/*.tmp

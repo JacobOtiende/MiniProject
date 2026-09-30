@@ -12,6 +12,12 @@ import uuid
 from datetime import datetime, timedelta
 
 
+def _parse(iso: str) -> datetime:
+    # Normalize to local-aware so naive seed events and offset-bearing
+    # query bounds (see calendar_tool._rfc3339) compare cleanly.
+    return datetime.fromisoformat(iso).astimezone()
+
+
 class _Exec:
     def __init__(self, result):
         self._result = result
@@ -25,12 +31,12 @@ class _EventsResource:
         self._events: dict[str, dict] = {}
 
     def list(self, calendarId, timeMin, timeMax, singleEvents=True, orderBy="startTime"):
-        start = datetime.fromisoformat(timeMin)
-        end = datetime.fromisoformat(timeMax)
+        start = _parse(timeMin)
+        end = _parse(timeMax)
         items = []
         for event_id, event in self._events.items():
-            ev_start = datetime.fromisoformat(event["start"]["dateTime"])
-            ev_end = datetime.fromisoformat(event["end"]["dateTime"])
+            ev_start = _parse(event["start"]["dateTime"])
+            ev_end = _parse(event["end"]["dateTime"])
             if ev_start < end and ev_end > start:
                 items.append({**event, "id": event_id})
         return _Exec({"items": items})

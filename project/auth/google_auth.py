@@ -13,17 +13,22 @@ from __future__ import annotations
 
 import os
 
+import google_auth_httplib2
+import httplib2
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
+from googleapiclient.http import HttpRequest
 
 # Gmail: read emails and create drafts (send via Gmail, not directly)
-# plus full Calendar access (create/update/query events).
+# plus full Calendar access (create/update/query events) and Google Tasks
+# (write follow-ups into "My Tasks").
 SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/tasks",
 ]
 
 
@@ -35,7 +40,13 @@ def get_credentials(client_secrets_path: str, token_path: str) -> Credentials:
     creds: Credentials | None = None
 
     if os.path.exists(token_path):
-        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+        # Load with the scopes the token was actually granted (passing SCOPES
+        # here would overwrite them). A token cached before a scope was added
+        # still looks valid; force a fresh consent instead of failing later
+        # with "Insufficient Permission".
+        creds = Credentials.from_authorized_user_file(token_path)
+        if not creds.has_scopes(SCOPES):
+            creds = None
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -60,11 +71,27 @@ def get_credentials(client_secrets_path: str, token_path: str) -> Credentials:
     return creds
 
 
-def build_gmail_service(client_secrets_path: str, token_path: str):
+def _build_service(api: str, version: str, client_secrets_path: str, token_path: str):
+    """Build a thread-safe API client. The agent runs parallel tool calls on
+    worker threads, and httplib2.Http is not thread-safe: sharing one
+    connection corrupts the TLS stream (ssl.SSLError WRONG_VERSION_NUMBER).
+    Google's documented fix is a fresh Http per request via requestBuilder."""
     creds = get_credentials(client_secrets_path, token_path)
-    return build("gmail", "v1", credentials=creds)
+
+    def build_request(_http, *args, **kwargs):
+        return HttpRequest(google_auth_httplib2.AuthorizedHttp(creds, http=httplib2.Http()), *args, **kwargs)
+
+    authorized_http = google_auth_httplib2.AuthorizedHttp(creds, http=httplib2.Http())
+    return build(api, version, http=authorized_http, requestBuilder=build_request)
+
+
+def build_gmail_service(client_secrets_path: str, token_path: str):
+    return _build_service("gmail", "v1", client_secrets_path, token_path)
 
 
 def build_calendar_service(client_secrets_path: str, token_path: str):
-    creds = get_credentials(client_secrets_path, token_path)
-    return build("calendar", "v3", credentials=creds)
+    return _build_service("calendar", "v3", client_secrets_path, token_path)
+
+
+def build_tasks_service(client_secrets_path: str, token_path: str):
+    return _build_service("tasks", "v1", client_secrets_path, token_path)

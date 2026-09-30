@@ -13,6 +13,16 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 
+def _rfc3339(iso: str) -> str:
+    """Google Calendar rejects datetimes without a UTC offset (400 Bad
+    Request). Times from the agent and from datetime.now() are often naive,
+    so treat a naive value as the machine's local time and attach its offset."""
+    dt = datetime.fromisoformat(iso)
+    if dt.tzinfo is None:
+        dt = dt.astimezone()
+    return dt.isoformat()
+
+
 @dataclass
 class CalendarEvent:
     event_id: str
@@ -27,8 +37,8 @@ def check_conflict(calendar_service, calendar_id: str, start_iso: str, end_iso: 
         calendar_service.events()
         .list(
             calendarId=calendar_id,
-            timeMin=start_iso,
-            timeMax=end_iso,
+            timeMin=_rfc3339(start_iso),
+            timeMax=_rfc3339(end_iso),
             singleEvents=True,
             orderBy="startTime",
         )
@@ -65,8 +75,8 @@ def create_event(
     body = {
         "summary": title,
         "description": f"{description}\n\n[Created by MyAgent: {source_agent}]".strip(),
-        "start": {"dateTime": start_iso},
-        "end": {"dateTime": end_iso},
+        "start": {"dateTime": _rfc3339(start_iso)},
+        "end": {"dateTime": _rfc3339(end_iso)},
     }
     created = calendar_service.events().insert(calendarId=calendar_id, body=body).execute()
     return created["id"]
@@ -76,7 +86,7 @@ def reschedule_event(calendar_service, calendar_id: str, event_id: str, new_star
     calendar_service.events().patch(
         calendarId=calendar_id,
         eventId=event_id,
-        body={"start": {"dateTime": new_start_iso}, "end": {"dateTime": new_end_iso}},
+        body={"start": {"dateTime": _rfc3339(new_start_iso)}, "end": {"dateTime": _rfc3339(new_end_iso)}},
     ).execute()
 
 

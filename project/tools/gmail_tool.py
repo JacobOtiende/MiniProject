@@ -94,6 +94,14 @@ def fetch_new_school_emails(gmail_service, allowlist: list[str], max_results: in
     return _fetch(gmail_service, _build_query(allowlist, unread_only=True), max_results)
 
 
+def mark_as_read(gmail_service, message_id: str) -> None:
+    """Remove the UNREAD label so the next triage run doesn't pick the
+    message up again. Needs the gmail.modify scope."""
+    gmail_service.users().messages().modify(
+        userId="me", id=message_id, body={"removeLabelIds": ["UNREAD"]}
+    ).execute()
+
+
 def fetch_recent_school_emails(gmail_service, allowlist: list[str], since_iso: str, max_results: int = 50) -> list[SchoolEmail]:
     """Real, live call against the Gmail API — lists ALL school-allowlisted
     messages (read or unread) since since_iso. Used for the daily rundown

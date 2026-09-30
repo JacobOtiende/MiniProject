@@ -1,93 +1,88 @@
 # MiniProject — Unified School Operations Agent
 
+*Last updated: 2026-09-29*
+
 ## Current Status
 
-**MiniProject** is the harmonized, unified version of ChildOps (multi-agent) and SingleAgentOps (single-agent). It uses a proven single-agent architecture with an expanded tool set to handle school email triage, calendar management, task tracking, and daily briefings. The implementation is complete, tested, and ready for live-mode validation.
+**MiniProject** is a single-agent school operations assistant (harmonized from ChildOps and SingleAgentOps). One command, `python main.py`, runs the whole daily cycle: triage new school email (calendar events, Google Tasks, reply drafts), write a start-of-day briefing and an end-of-day wrap-up (saved as two daily summary tasks), mark handled email read, and walk through drafts awaiting approval.
 
-**Git:** Initialized and committed. Ready for deployment.
-
-**Health:** Code is stable. 14 tests pass. Demo mode works end-to-end. OAuth credentials configured.
+**Health:** 24/24 tests pass. Live mode runs against real Gmail and Calendar. Google Tasks is built and tested with fakes but blocked live (API not enabled). GitHub: https://github.com/JacobOtiende/MiniProject
 
 ---
 
 ## Completed
 
-- ✅ Single-agent architecture (agent/build_agent.py with 12 tools)
-- ✅ All tool implementations (Gmail, Calendar, task log, approval queue)
-- ✅ Three CLI modes: `triage`, `rundown`, `achievements`
-- ✅ Demo mode with sample data (no real API calls)
-- ✅ Full test suite with scripted model (tests/test_agent_loop.py)
-- ✅ OAuth setup for Gmail and Google Calendar (live mode)
-- ✅ System prompt with clear policy boundaries
-- ✅ Comprehensive README
+- ✅ Single-agent architecture (13 tools), system prompt with hard boundaries
+- ✅ Single command: `python main.py` → triage → rundown (☀️ Start of day) → wrap-up (🌙 End of day) → one review pass
+- ✅ Gmail: triage, replies saved as Gmail drafts, handled email marked read (agent tool + after-triage sweep)
+- ✅ Calendar: conflict check, alternates, event creation; timezone offsets fixed
+- ✅ Google Tasks: agent-chosen priority labels (🔴 [HIGH] / 🟠 [MEDIUM] / 🟢 [LOW]) with reasons, due dates, due-date order, de-duplication, completion sync, catch-up sync
+- ✅ Daily summary tasks in a separate "MyAgent Daily Summary" list, updated in place
+- ✅ Reliability: thread-safe Google clients, locked/atomic data files, tool errors reported to the model instead of crashing
+- ✅ OAuth auto re-consent when a scope is added (`gmail.readonly`, `gmail.modify`, `calendar`, `tasks`)
+- ✅ `data/task_log.json` untracked from git
 
 ---
 
 ## In Progress
 
-- 🔄 Gmail draft integration: Email drafts now saved directly to Gmail drafts folder instead of local JSON queue
-- 🔄 Live-mode OAuth re-authentication: Need to approve new `gmail.modify` scope for draft creation
+- 🔄 Live validation of Google Tasks (blocked, see below)
 
 ---
 
 ## Not Started
 
-- ⚪ Continuous deployment / scheduling (cron / Task Scheduler)
-- ⚪ Error recovery and retry logic for rate limits
-- ⚪ Email read status tracking (automatic marking of processed emails as read)
+- ⚪ Scheduled runs (Task Scheduler) — e.g. morning and evening, so the two summaries are fresh
+- ⚪ Rate-limit backoff/retry for OpenAI calls
+- ⚪ Approve/reject in the review loop does not yet send or delete the matching Gmail draft
+- ⚪ Removing `data/task_log.json` from public git history (needs a history rewrite + force push; user decision)
 
 ---
 
 ## Blockers
 
-**None current.** Ready to begin live-mode testing.
+- 🟠 **Google Tasks API disabled** for Google Cloud project `768142962405` (the OAuth client's project). All Tasks calls return `403 accessNotConfigured`. Tasks are kept locally and sync on the first run after it is enabled.
 
 ---
 
 ## Important Decisions
 
-1. **Single-agent over multi-agent:** Traded the "second opinion" safety check (Control Tower) for architectural simplicity and true autonomy. Mitigated by hard boundaries: no send tool exists; all email drafts require human approval via `approvals/approval_queue.py`.
-
-2. **Policy as instruction, not enforcement:** System prompt states behavior; nothing in code enforces it. Live testing against real inboxes is the evaluation method.
-
-3. **Scripted tests over live tests:** Tests use a fake LLM. They prove tools work and flow correctly, not that the real model makes good choices.
+1. **Single-agent over multi-agent.** No second-opinion agent; mitigated by the hard boundary that no send tool exists.
+2. **Policy as instruction, not enforcement.** Behavior lives in `agent/system_prompt.py`; live runs are the evaluation.
+3. **Priority is the agent's judgment**, shown as a title label because Google Tasks has no color, font, or priority field; the reason goes in the notes.
+4. **Every triaged email is marked read** (user request). Failures are logged as tasks rather than left unread for retry.
+5. **Daily summaries are separate** from the task log and from My Tasks.
+6. **Scripted tests** prove tool flow, not model judgment.
 
 ---
 
 ## Known Issues
 
-- Demo mode uses hardcoded sample emails; rerunning triage reprocesses them.
-- Google OAuth token expires every 7 days in Testing mode (delete `credentials/token.json` and sign in again to refresh).
-- OAuth scopes were updated to include `gmail.modify` for draft creation (2026-09-28). Cached token will be invalid; delete `credentials/token.json` to trigger re-authentication on next run.
-- System prompt assumes certain email formats and calendar event metadata; edge cases may confuse the agent.
+- The agent is signed in as **childops2@gmail.com**; tasks only appear in that account's Google Tasks.
+- 7 unread school emails remained after the last live run; the next run will process them once (duplicates of earlier events are possible that one time).
+- Google OAuth tokens expire every 7 days in Testing mode; the next run re-prompts.
+- Older commits contain `data/task_log.json` with real school details (public repo).
+- The model sometimes skips `mark_email_read`; the after-triage sweep covers it.
 
 ---
 
 ## Immediate Next Action
 
-**Approve Gmail OAuth scope expansion for draft creation:**
-
-1. When you run `python main.py` next, you'll see a browser authentication prompt asking to approve the new `gmail.modify` scope.
-2. Click "Allow" to grant permission to create drafts.
-3. The token will be cached at `credentials/token.json` for future runs.
-4. After approval, test live mode: `python main.py triage --review` will show drafts created in your Gmail drafts folder instead of the local queue.
+Enable the **Google Tasks API** at https://console.developers.google.com/apis/api/tasks.googleapis.com/overview?project=768142962405 (confirm the project selector shows 768142962405), wait 2–3 minutes, then run `python main.py` in `MiniProject/project/`. Verify, signed in to tasks.google.com as childops2@gmail.com, that: (1) tasks appear in My Tasks in due-date order with priority labels and dates, (2) the "MyAgent Daily Summary" list has ☀️ Start of day and 🌙 End of day, (3) the school emails show as read in Gmail. Record results in `docs/DAILY_LOG.md`.
 
 ---
 
 ## Recommended Next Steps
 
-After live-mode validation:
-
-1. Add rate-limit backoff and retry logic (like ChildOps has in agents/llm.py).
-2. Implement automatic email read-status marking (requires `gmail.modify` scope expansion).
-3. Add scheduled runs via cron (Linux/Mac) or Task Scheduler (Windows).
-4. Consider Control Tower reintroduction if live testing reveals systematic misclassifications.
+1. Review the agent's priority choices and reasons on real email; tune the prompt if it misjudges.
+2. Schedule two runs a day with Windows Task Scheduler (morning for Start of day, evening for End of day).
+3. Wire approve/reject in the review loop to send or delete the Gmail draft.
+4. Decide whether to purge `data/task_log.json` from git history.
 
 ---
 
 ## Important Context
 
-- **Why single-agent?** Simpler architecture, clearer autonomy story, easier to debug than multi-agent coordination.
-- **Why not sent emails without approval?** Safety: the system can never bypass the human gate, regardless of model behavior.
-- **How to evaluate quality?** Run live mode, read what the model actually does, compare against system prompt. That's the real test.
-- **Relation to ChildOps project?** ChildOps (in `PROJECTS/ChildOps/`) is the multi-agent version; SingleAgentOps is an alternative design at the same stage (live testing).
+- **Run:** `cd MiniProject/project && python main.py` (`.env` has `MYAGENT_MODE=live`; set `demo` for fake Google services).
+- **Data:** `data/task_log.json` (local tasks + achievements, git-ignored), `data/pending_approvals.json` (draft queue, git-ignored). A corrupt file is moved aside as `*.corrupt-<time>`.
+- **Safety:** there is no send tool; drafts need human approval.

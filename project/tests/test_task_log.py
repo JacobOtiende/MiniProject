@@ -38,3 +38,29 @@ def test_achievements_respect_recency_window(tmp_path):
     recent = log.list_recent_achievements(days=1)
     assert [a["description"] for a in recent] == ["Did something today"]
     assert len(log.list_recent_achievements(days=30)) == 2
+
+
+def test_parallel_writes_do_not_corrupt_or_lose_entries(tmp_path):
+    # The agent runs tool calls on parallel threads; this is the race that
+    # corrupted data/task_log.json in a live run.
+    from concurrent.futures import ThreadPoolExecutor
+
+    log = TaskLog(path=str(tmp_path / "log.json"))
+    with ThreadPoolExecutor(8) as ex:
+        list(ex.map(lambda i: log.log_task(f"task {i}", priority="low"), range(40)))
+        list(ex.map(lambda i: log.log_achievement(f"done {i}"), range(40)))
+
+    assert len(log.list_open_tasks()) == 40
+    assert len(log.list_recent_achievements(days=1)) == 40
+
+
+def test_corrupt_file_is_set_aside_not_silently_overwritten(tmp_path):
+    path = tmp_path / "log.json"
+    path.write_text('{"tasks": {}, "achievements": {}}\n}\n}', encoding="utf-8")
+
+    log = TaskLog(path=str(path))
+    log.log_task("fresh start")
+
+    backups = list(tmp_path.glob("log.json.corrupt-*"))
+    assert len(backups) == 1 and backups[0].read_text(encoding="utf-8").endswith("}")
+    assert [t["description"] for t in log.list_open_tasks()] == ["fresh start"]
