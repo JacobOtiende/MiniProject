@@ -39,9 +39,50 @@ def _report_errors(func):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        import time
+        tool_name = func.__name__
+        start_time = time.time()
+
+        # Extract logger from deps if available
+        logger = None
+        deps_obj = None
+        for arg in args:
+            if hasattr(arg, 'logger') and arg.logger:
+                logger = arg.logger
+                deps_obj = arg
+                break
+
         try:
-            return func(*args, **kwargs)
+            result = func(*args, **kwargs)
+            latency_ms = (time.time() - start_time) * 1000
+            if logger:
+                try:
+                    args_dict = {"kwargs": kwargs}
+                    logger.record_tool_call(
+                        tool_name=tool_name,
+                        args=args_dict,
+                        result=str(result)[:500] if result else None,
+                        error=None,
+                        latency_ms=latency_ms,
+                    )
+                except Exception:
+                    pass  # Don't let logging errors break the tool
+            return result
         except Exception as e:
+            latency_ms = (time.time() - start_time) * 1000
+            error_msg = f"{type(e).__name__}: {e}"
+            if logger:
+                try:
+                    args_dict = {"kwargs": kwargs}
+                    logger.record_tool_call(
+                        tool_name=tool_name,
+                        args=args_dict,
+                        result=None,
+                        error=error_msg,
+                        latency_ms=latency_ms,
+                    )
+                except Exception:
+                    pass  # Don't let logging errors break the tool
             return (
                 f"Error: {type(e).__name__}: {e}. This action did not happen. "
                 "If it was for an email, log_task what still needs doing so it isn't lost."

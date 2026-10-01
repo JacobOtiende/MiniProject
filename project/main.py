@@ -27,11 +27,15 @@ from agent.tools import mark_remaining_emails_read, sync_unsynced_tasks
 from approvals.approval_queue import ApprovalQueue, run_red_alert_loop
 from auth.google_auth import build_calendar_service, build_gmail_service, build_tasks_service
 from config import load_settings
+from observability.logging import RunLogger
 from tasks.task_log import TaskLog
 from tools.demo_calendar import InMemoryCalendarService, default_seed_events
 from tools.demo_email import default_seed_emails
 from tools import tasks_tool
 from tools.demo_tasks import InMemoryTasksService
+
+# Track current phase for token logging
+_current_phase = None
 
 # Run in this order: triage first so the rundown and achievements summary
 # reflect whatever it just created, logged, or drafted.
@@ -61,7 +65,7 @@ PHASE_INSTRUCTIONS = {
 SUMMARY_TASK_FOR_PHASE = {"rundown": "start", "achievements": "end"}
 
 
-def build_deps(settings) -> Deps:
+def build_deps(settings, logger=None) -> Deps:
     model = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key)
     task_log = TaskLog(path="./data/task_log.json")
 
@@ -78,6 +82,7 @@ def build_deps(settings) -> Deps:
             school_sender_allowlist=settings.school_sender_allowlist or ["ourschool.edu"],
             email_store=default_seed_emails(now),
             tasks_service=InMemoryTasksService(),
+            logger=logger,
         )
 
     gmail_service = build_gmail_service(settings.google_oauth_client_secrets, settings.google_oauth_token_path)
@@ -93,6 +98,7 @@ def build_deps(settings) -> Deps:
         school_sender_allowlist=settings.school_sender_allowlist,
         gmail_service=gmail_service,
         tasks_service=build_tasks_service(settings.google_oauth_client_secrets, settings.google_oauth_token_path),
+        logger=logger,
     )
 
 
@@ -110,14 +116,47 @@ def main() -> None:
     # Agent replies can include the priority markers (🔴🟠🟢); don't let a
     # legacy Windows console codepage crash the run on them.
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+    # Initialize observability
+    logger = RunLogger()
+    logger.logger.info(f"Starting MyAgent run: {logger.run_id}")
+
     settings = load_settings()
-    deps = build_deps(settings)
+    deps = build_deps(settings, logger=logger)
+
+    # Wrap model to track token usage
+    original_invoke = deps.model.invoke
+    def invoke_with_tracking(input_obj, **kwargs):
+        result = original_invoke(input_obj, **kwargs)
+        # Extract token usage from response metadata
+        if hasattr(result, 'response_metadata') and result.response_metadata:
+            usage = result.response_metadata.get('usage', {})
+            if usage and hasattr(logger, 'record_tokens'):
+                input_tokens = usage.get('prompt_tokens', 0)
+                output_tokens = usage.get('completion_tokens', 0)
+                if input_tokens or output_tokens:
+                    logger.record_tokens(_current_phase, input_tokens, output_tokens)
+        return result
+    deps.model.invoke = invoke_with_tracking
+
     agent = build_agent(deps)
 
+    # Global variable to track current phase for token tracking
+    global _current_phase
+
     for phase, instruction in PHASE_INSTRUCTIONS.items():
-        result = agent.invoke({"messages": [{"role": "user", "content": instruction}]})
+        _current_phase = phase
+        logger.record_phase_start(phase)
+
+        result = agent.invoke(
+            {"messages": [{"role": "user", "content": instruction}]}
+        )
+
         print(f"\n=== MyAgent [{phase}] ===\n")
         print(result["messages"][-1].content)
+
+        logger.record_phase_end(phase)
+
         if phase == "triage":
             swept = mark_remaining_emails_read(deps)
             print(f"\n{len(deps.seen_email_ids)} school email(s) triaged and marked read in Gmail"
@@ -133,9 +172,20 @@ def main() -> None:
             )
 
     print("\n=== MyAgent [review] ===")
+    logger.record_phase_start("review")
     # One pass per run: anything left for "Later" stays pending and
     # alerts again on the next run.
     run_red_alert_loop(deps.approval_queue, max_polls=1)
+    logger.record_phase_end("review")
+
+    # Save all logs and metrics
+    summary = logger.finalize()
+    print(f"\n=== Observability Summary ===")
+    print(f"Logs saved to: {summary['metrics_file']}")
+    print(f"Tool calls: {summary['tool_summary']['total_calls']} "
+          f"({summary['tool_summary']['success_rate']:.1%} success)")
+    print(f"Total tokens: {summary['token_summary']['total_tokens']} "
+          f"(${summary['token_summary']['total_cost_usd']:.4f})")
 
 
 if __name__ == "__main__":

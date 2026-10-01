@@ -28,3 +28,4 @@ class Deps:
     seen_email_ids: set[str] = field(default_factory=set)
     read_email_ids: set[str] = field(default_factory=set)
     now: Callable[[], datetime] = field(default_factory=lambda: datetime.now)
+    logger: Any = None  # observability.logging.RunLogger for tracing tool calls
