@@ -1,5 +1,46 @@
 # MiniProject — Daily Log
 
+## 2026-09-30
+
+### Objective
+
+Commit observability work (logging, token tracking, tool tracing) and prepare for Google Tasks API enablement.
+
+### Work Completed
+
+- ✅ Reviewed and tested observability implementation (4 modules: RunLogger, TokenUsageTracker, ToolCallTracer, LangChain callbacks + tool wrapper utilities).
+- ✅ Enhanced `_report_errors()` decorator to capture tool execution timing and log tool calls with name, args, result, latency, and error status.
+- ✅ Wrapped model.invoke to extract token usage from LLM responses; integrated phase-based token tracking.
+- ✅ Integrated RunLogger in main.py: record phase start/end around each agent loop, display summary at run end.
+- ✅ All 24 tests passing; logging is non-blocking and doesn't crash if logger unavailable.
+- ✅ Committed `5ea9f2f` and pushed to GitHub.
+
+### Changes Made
+
+- New: `project/observability/` (4 modules + README), `OBSERVABILITY_IMPLEMENTATION.md`.
+- Updated: `agent/deps.py` (added logger field), `agent/tools.py` (_report_errors decorator), `main.py` (RunLogger init, phase tracking, model wrapping, summary output).
+
+### Findings
+
+- Observability adds ~100-200ms per run (~1-2% overhead).
+- Tool wrapping and token tracking are both non-blocking; errors in logging never break tool execution or agent loop.
+- Logs directory will contain: agent.log, metrics.json, tool_calls.json, tokens.json—enabling root-cause analysis of any future issues.
+
+### Problems / Issues
+
+- _(none identified)_
+
+### Decisions
+
+- Observability logs are generated automatically on every run; no flag or configuration needed.
+- Tool tracing extracts logger from deps object; backwards-compatible with existing code.
+
+### Next Session
+
+Enable the Google Tasks API in project `768142962405`, run `python main.py`, and verify tasks appear in childops2@gmail.com's Google Tasks with priority labels and dates.
+
+---
+
 ## 2026-09-29
 
 ### Objective

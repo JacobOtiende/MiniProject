@@ -1,12 +1,12 @@
 # MiniProject — Unified School Operations Agent
 
-*Last updated: 2026-09-29*
+*Last updated: 2026-09-30*
 
 ## Current Status
 
 **MiniProject** is a single-agent school operations assistant (harmonized from ChildOps and SingleAgentOps). One command, `python main.py`, runs the whole daily cycle: triage new school email (calendar events, Google Tasks, reply drafts), write a start-of-day briefing and an end-of-day wrap-up (saved as two daily summary tasks), mark handled email read, and walk through drafts awaiting approval.
 
-**Health:** 24/24 tests pass. Live mode runs against real Gmail and Calendar. Google Tasks is built and tested with fakes but blocked live (API not enabled). GitHub: https://github.com/JacobOtiende/MiniProject
+**Health:** 24/24 tests pass. Live mode runs against real Gmail and Calendar. Google Tasks is built and tested with fakes but blocked live (API not enabled). Observability (logging, token tracking, tool tracing) is fully integrated. GitHub: https://github.com/JacobOtiende/MiniProject
 
 ---
 
@@ -21,6 +21,7 @@
 - ✅ Reliability: thread-safe Google clients, locked/atomic data files, tool errors reported to the model instead of crashing
 - ✅ OAuth auto re-consent when a scope is added (`gmail.readonly`, `gmail.modify`, `calendar`, `tasks`)
 - ✅ `data/task_log.json` untracked from git
+- ✅ Observability: RunLogger, TokenUsageTracker, ToolCallTracer with full integration into main.py; logs tool calls, per-phase token usage, cost breakdown; four output files per run (agent.log, metrics.json, tool_calls.json, tokens.json)
 
 ---
 
@@ -68,7 +69,7 @@
 
 ## Immediate Next Action
 
-Enable the **Google Tasks API** at https://console.developers.google.com/apis/api/tasks.googleapis.com/overview?project=768142962405 (confirm the project selector shows 768142962405), wait 2–3 minutes, then run `python main.py` in `MiniProject/project/`. Verify, signed in to tasks.google.com as childops2@gmail.com, that: (1) tasks appear in My Tasks in due-date order with priority labels and dates, (2) the "MyAgent Daily Summary" list has ☀️ Start of day and 🌙 End of day, (3) the school emails show as read in Gmail. Record results in `docs/DAILY_LOG.md`.
+Enable the **Google Tasks API** at https://console.developers.google.com/apis/api/tasks.googleapis.com/overview?project=768142962405 (confirm the project selector shows 768142962405), wait 2–3 minutes, then run `python main.py` in `MiniProject/project/`. Verify, signed in to tasks.google.com as childops2@gmail.com, that: (1) tasks appear in My Tasks in due-date order with priority labels and dates, (2) the "MyAgent Daily Summary" list has ☀️ Start of day and 🌙 End of day, (3) the school emails show as read in Gmail. Also check the `logs/` directory for observability output files (metrics.json, tool_calls.json, tokens.json) and confirm tool success rate and cost breakdown. Record results in `docs/DAILY_LOG.md`.
 
 ---
 

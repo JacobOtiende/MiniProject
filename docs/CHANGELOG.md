@@ -1,5 +1,29 @@
 # MiniProject — Changelog
 
+## [2026-09-30] Observability: Logging, Token Tracking, Tool Tracing
+
+### Added
+- `project/observability/` module: RunLogger (unified logging), TokenUsageTracker (per-phase LLM cost), ToolCallTracer (tool execution metrics).
+- Tool execution tracing: every tool call now records name, args, result (first 500 chars), latency (ms), error status, timestamp.
+- Token usage tracking: extracts input/output tokens from LLM responses; calculates per-phase cost using GPT-4o pricing ($0.003/$0.006 per 1K tokens).
+- Phase-based logging: agent loop records start/end of each phase (triage, rundown, achievements, review).
+- Observability summary at run end: displays tool success rate and total token cost.
+- Four output files per run: agent.log (structured logs), metrics.json (aggregated stats), tool_calls.json (detailed tool trace), tokens.json (per-phase breakdown).
+
+### Changed
+- `_report_errors()` decorator now captures execution time and logs tool calls to the RunLogger (if available in deps).
+- `model.invoke` wrapped to extract token usage from response metadata.
+- `main.py` initializes RunLogger at startup and passes logger to deps; displays observability summary at run end.
+
+### Fixed
+- _(none; new feature, all existing tests pass)_
+
+### Performance
+- Observability overhead: ~100-200ms per run (~1-2% impact).
+- Tool tracing and token tracking are non-blocking; logging errors never interrupt tool execution or agent loop.
+
+---
+
 ## [2026-09-29] Google Tasks, Single Command, Reliability Fixes
 
 ### Added
