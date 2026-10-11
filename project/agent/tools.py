@@ -189,12 +189,36 @@ def build_tools(deps):
         return [_serialize(e) for e in events]
 
     @tool
-    def propose_alternate_times(desired_start_iso: str, duration_minutes: int = 60) -> list[str]:
-        """Find up to 3 conflict-free alternate start times near a desired
-        time. Use this yourself to resolve a scheduling conflict before
-        involving the parent — only log_task if nothing reasonable turns up."""
+    def propose_alternate_times(
+        desired_start_iso: str,
+        duration_minutes: int = 60,
+        search_days_ahead: int = 5,
+        earliest_hour: int = 8,
+        latest_hour: int = 18,
+        allow_weekends: bool = False,
+    ) -> list[str]:
+        """Find conflict-free alternate start times near a desired time.
+        Use this to resolve a scheduling conflict before involving the parent.
+        Only log_task if nothing reasonable turns up.
+
+        By default: weekdays only, 8 AM - 6 PM, search 5 days ahead.
+        Adjust parameters if you need flexibility:
+        - search_days_ahead: how many days to search forward (default 5)
+        - earliest_hour: earliest acceptable time, 24-hour (default 8 = 8 AM)
+        - latest_hour: latest acceptable time, 24-hour (default 18 = 6 PM)
+        - allow_weekends: if True, include Saturday and Sunday (default False)
+        """
+        blocked_weekdays = () if allow_weekends else (5, 6)  # 5=Saturday, 6=Sunday
         return calendar_tool.propose_alternates(
-            deps.calendar_service, deps.calendar_id, desired_start_iso, duration_minutes
+            deps.calendar_service,
+            deps.calendar_id,
+            desired_start_iso,
+            duration_minutes,
+            search_window_days=search_days_ahead,
+            earliest_hour=earliest_hour,
+            latest_hour=latest_hour,
+            blocked_weekdays=blocked_weekdays,
+            max_candidates=3,
         )
 
     @tool

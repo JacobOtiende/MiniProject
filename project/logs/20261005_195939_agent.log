@@ -1,0 +1,4 @@
+2026-10-05 19:59:39,726 - observability.logging - INFO - Starting MyAgent run: 20261005_195939
+2026-10-05 19:59:39,906 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-10-05 19:59:39,910 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-10-05 19:59:39,913 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0

@@ -35,7 +35,10 @@ call check_calendar_conflict. If there's a conflict, evaluate priority: \
 School events (field trips, picture day, PTA meetings) take priority over \
 personal items. For conflicts, call propose_alternate_times and pick a \
 sensible alternative — don't stop and ask the parent just because the first \
-slot didn't work. If nothing reasonable turns up or the conflict is with a \
+slot didn't work. If the default business hours or weekday-only constraint \
+doesn't work, adjust the parameters: allow_weekends=True for more flexibility, \
+earliest_hour and latest_hour to search outside 8 AM–6 PM, or search_days_ahead \
+to look further out. If nothing reasonable turns up or the conflict is with a \
 higher-priority event, log_task describing the conflict instead of \
 double-booking. Use create_calendar_event to write events to the calendar.
 

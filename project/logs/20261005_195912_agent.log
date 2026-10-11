@@ -1,0 +1,6 @@
+2026-10-05 19:59:12,972 - observability.logging - INFO - Starting MyAgent run: 20261005_195912
+2026-10-05 19:59:13,311 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2026-10-05 19:59:13,803 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/1.1" 200 None
+2026-10-05 19:59:13,812 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-10-05 19:59:13,816 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2026-10-05 19:59:13,821 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
