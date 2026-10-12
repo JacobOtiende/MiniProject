@@ -50,8 +50,13 @@ def get_credentials(client_secrets_path: str, token_path: str) -> Credentials:
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+            except Exception:
+                # Refresh failed (token revoked, invalid grant, etc). Re-consent.
+                creds = None
+
+        if not creds:
             if not os.path.exists(client_secrets_path):
                 raise FileNotFoundError(
                     f"Google OAuth client secrets not found at {client_secrets_path!r}. "

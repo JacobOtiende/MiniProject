@@ -123,69 +123,57 @@ def main() -> None:
 
     settings = load_settings()
     deps = build_deps(settings, logger=logger)
-
-    # Wrap model to track token usage
-    original_invoke = deps.model.invoke
-    def invoke_with_tracking(input_obj, **kwargs):
-        result = original_invoke(input_obj, **kwargs)
-        # Extract token usage from response metadata
-        if hasattr(result, 'response_metadata') and result.response_metadata:
-            usage = result.response_metadata.get('usage', {})
-            if usage and hasattr(logger, 'record_tokens'):
-                input_tokens = usage.get('prompt_tokens', 0)
-                output_tokens = usage.get('completion_tokens', 0)
-                if input_tokens or output_tokens:
-                    logger.record_tokens(_current_phase, input_tokens, output_tokens)
-        return result
-    deps.model.invoke = invoke_with_tracking
-
     agent = build_agent(deps)
 
     # Global variable to track current phase for token tracking
     global _current_phase
 
-    for phase, instruction in PHASE_INSTRUCTIONS.items():
-        _current_phase = phase
-        logger.record_phase_start(phase)
+    try:
+        for phase, instruction in PHASE_INSTRUCTIONS.items():
+            _current_phase = phase
+            logger.record_phase_start(phase)
 
-        result = agent.invoke(
-            {"messages": [{"role": "user", "content": instruction}]}
-        )
-
-        print(f"\n=== MyAgent [{phase}] ===\n")
-        print(result["messages"][-1].content)
-
-        logger.record_phase_end(phase)
-
-        if phase == "triage":
-            swept = mark_remaining_emails_read(deps)
-            print(f"\n{len(deps.seen_email_ids)} school email(s) triaged and marked read in Gmail"
-                  + (f" ({swept} the agent hadn't marked itself)." if swept else "."))
-            _google_tasks_step("sync tasks to My Tasks", deps.tasks_service, lambda: sync_unsynced_tasks(deps))
-        if phase in SUMMARY_TASK_FOR_PHASE:
-            kind = SUMMARY_TASK_FOR_PHASE[phase]
-            summary = result["messages"][-1].content
-            _google_tasks_step(
-                f"update the {tasks_tool.SUMMARY_KINDS[kind]} summary task",
-                deps.tasks_service,
-                lambda: tasks_tool.upsert_daily_summary(deps.tasks_service, kind, summary, deps.now().date()),
+            result = agent.invoke(
+                {"messages": [{"role": "user", "content": instruction}]}
             )
 
-    print("\n=== MyAgent [review] ===")
-    logger.record_phase_start("review")
-    # One pass per run: anything left for "Later" stays pending and
-    # alerts again on the next run.
-    run_red_alert_loop(deps.approval_queue, max_polls=1)
-    logger.record_phase_end("review")
+            print(f"\n=== MyAgent [{phase}] ===\n")
+            print(result["messages"][-1].content)
 
-    # Save all logs and metrics
-    summary = logger.finalize()
-    print(f"\n=== Observability Summary ===")
-    print(f"Logs saved to: {summary['metrics_file']}")
-    print(f"Tool calls: {summary['tool_summary']['total_calls']} "
-          f"({summary['tool_summary']['success_rate']:.1%} success)")
-    print(f"Total tokens: {summary['token_summary']['total_tokens']} "
-          f"(${summary['token_summary']['total_cost_usd']:.4f})")
+            logger.record_phase_end(phase)
+
+            if phase == "triage":
+                swept = mark_remaining_emails_read(deps)
+                print(f"\n{len(deps.seen_email_ids)} school email(s) triaged and marked read in Gmail"
+                      + (f" ({swept} the agent hadn't marked itself)." if swept else "."))
+                _google_tasks_step("sync tasks to My Tasks", deps.tasks_service, lambda: sync_unsynced_tasks(deps))
+            if phase in SUMMARY_TASK_FOR_PHASE:
+                kind = SUMMARY_TASK_FOR_PHASE[phase]
+                summary = result["messages"][-1].content
+                _google_tasks_step(
+                    f"update the {tasks_tool.SUMMARY_KINDS[kind]} summary task",
+                    deps.tasks_service,
+                    lambda: tasks_tool.upsert_daily_summary(deps.tasks_service, kind, summary, deps.now().date()),
+                )
+
+        print("\n=== MyAgent [review] ===")
+        logger.record_phase_start("review")
+        # One pass per run: anything left for "Later" stays pending and
+        # alerts again on the next run.
+        try:
+            run_red_alert_loop(deps.approval_queue, max_polls=1)
+        except EOFError:
+            print("(No input available; skipping approval prompts)")
+        logger.record_phase_end("review")
+    finally:
+        # Save all logs and metrics, even if there was an error
+        summary = logger.finalize()
+        print(f"\n=== Observability Summary ===")
+        print(f"Logs saved to: {summary['metrics_file']}")
+        print(f"Tool calls: {summary['tool_summary']['total_calls']} "
+              f"({summary['tool_summary']['success_rate']:.1%} success)")
+        print(f"Total tokens: {summary['token_summary']['total_tokens']} "
+              f"(${summary['token_summary']['total_cost_usd']:.4f})")
 
 
 if __name__ == "__main__":
