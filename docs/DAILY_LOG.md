@@ -1,5 +1,51 @@
 # MiniProject — Daily Log
 
+## 2026-10-12
+
+### Objective
+
+Enable the Google Tasks API, run the agent against live services, verify all integrations working, and confirm observability logs are being generated.
+
+### Work Completed
+
+- ✅ Enabled Google Tasks API in Google Cloud project `768142962405`.
+- ✅ Fixed OAuth token handling: catch RefreshError and trigger re-consent when token is invalid/revoked.
+- ✅ Fixed observability logging: wrap main() in try-finally to ensure logger.finalize() is always called, even on errors like EOFError.
+- ✅ Ran the agent against live Gmail, Calendar, and Google Tasks APIs; all succeeded.
+- ✅ Verified 5 tasks synced to Google Tasks with priority labels and due dates.
+- ✅ Verified observability files generated: agent.log, metrics.json, tool_calls.json, tokens.json.
+- ✅ All 24 tests still passing.
+- ✅ Committed fixes: `a9960b3`.
+
+### Changes Made
+
+- Updated: `project/auth/google_auth.py` (OAuth refresh error handling), `project/main.py` (try-finally wrapper, EOFError handling).
+
+### Findings
+
+- **Google Tasks API is fully functional:** Tasks sync correctly with google_task_id mapping and are visible in Google Tasks.
+- **OAuth token refresh works:** After 7-day expiration (Testing mode), Firefox opens for re-consent; tokens are refreshed successfully.
+- **Observability infrastructure works:** All 4 phases (triage, rundown, achievements, review) run and log correctly; JSON files created every run.
+- **Agent behavior verified:** Correctly prioritizes tasks (high/medium), assigns due dates, and generates email drafts for approval.
+- **Run time:** ~14.5 seconds for full cycle (triage → rundown → achievements → review).
+
+### Problems / Issues
+
+- None. All systems operational.
+
+### Decisions
+
+- Keep observability JSON files minimal (empty tool_calls/tokens) for now; focus on agent.log and metrics summary.
+- Handle stdin EOF gracefully in non-interactive mode instead of crashing.
+
+### Next Session
+
+1. (Optional) Tune agent's priority judgments by reviewing a few live runs.
+2. (Optional) Schedule two runs a day with Windows Task Scheduler (morning for Start of day summary, evening for End of day summary).
+3. (Optional) Decide whether to purge `data/task_log.json` from git history (needs history rewrite + force push).
+
+---
+
 ## 2026-09-30
 
 ### Objective

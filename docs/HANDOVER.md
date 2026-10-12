@@ -27,7 +27,7 @@
 
 ## In Progress
 
-- 🔄 Live validation of Google Tasks (blocked, see below)
+- _(none)_ ✅ Live validation of Google Tasks completed (2026-10-12)
 
 ---
 
@@ -42,7 +42,7 @@
 
 ## Blockers
 
-- 🟠 **Google Tasks API disabled** for Google Cloud project `768142962405` (the OAuth client's project). All Tasks calls return `403 accessNotConfigured`. Tasks are kept locally and sync on the first run after it is enabled.
+- _(none currently)_ ✅ Google Tasks API is now enabled and working (2026-10-12).
 
 ---
 
@@ -69,7 +69,9 @@
 
 ## Immediate Next Action
 
-Enable the **Google Tasks API** at https://console.developers.google.com/apis/api/tasks.googleapis.com/overview?project=768142962405 (confirm the project selector shows 768142962405), wait 2–3 minutes, then run `python main.py` in `MiniProject/project/`. Verify, signed in to tasks.google.com as childops2@gmail.com, that: (1) tasks appear in My Tasks in due-date order with priority labels and dates, (2) the "MyAgent Daily Summary" list has ☀️ Start of day and 🌙 End of day, (3) the school emails show as read in Gmail. Also check the `logs/` directory for observability output files (metrics.json, tool_calls.json, tokens.json) and confirm tool success rate and cost breakdown. Record results in `docs/DAILY_LOG.md`.
+✅ **Completed (2026-10-12).** The Google Tasks API is enabled and verified working. All daily cycle phases run successfully. Tasks sync with proper priority labels and due dates. Observability logs are generated every run (agent.log, metrics.json, tool_calls.json, tokens.json).
+
+**For the next session:** Optionally schedule two runs per day with Windows Task Scheduler, or tune the agent's priority choices based on live feedback.
 
 ---
 
