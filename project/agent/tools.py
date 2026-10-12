@@ -97,6 +97,8 @@ def _mark_read(deps, message_id: str) -> None:
     else:
         gmail_tool.mark_as_read(deps.gmail_service, message_id)
     deps.read_email_ids.add(message_id)
+    # Also mark as reviewed so it won't be shown again even if unmarked
+    deps.task_log.mark_email_reviewed(message_id)
 
 
 def mark_remaining_emails_read(deps) -> int:
