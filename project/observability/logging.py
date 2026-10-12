@@ -179,14 +179,13 @@ class RunLogger:
         self.logs_dir = Path(logs_dir)
         self.logs_dir.mkdir(exist_ok=True)
 
-        # Set up Python logging
+        # Set up Python logging - only to file, not to stdout/stderr
         log_file = self.logs_dir / f"{self.run_id}_agent.log"
         logging.basicConfig(
             level=logging.DEBUG,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
                 logging.FileHandler(log_file),
-                logging.StreamHandler(),
             ],
         )
         self.logger = logging.getLogger(__name__)

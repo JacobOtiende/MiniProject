@@ -124,7 +124,10 @@ def main() -> None:
     logging.getLogger("google").setLevel(logging.WARNING)
     logging.getLogger("openai").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpcore2").setLevel(logging.WARNING)
     logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("requests_oauthlib").setLevel(logging.WARNING)
 
     # Initialize observability
     logger = RunLogger()
