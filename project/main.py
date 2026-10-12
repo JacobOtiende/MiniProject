@@ -117,6 +117,15 @@ def main() -> None:
     # legacy Windows console codepage crash the run on them.
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+    # Suppress noisy debug logging from external libraries
+    import logging
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("googleapiclient").setLevel(logging.WARNING)
+    logging.getLogger("google").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
     # Initialize observability
     logger = RunLogger()
     logger.logger.info(f"Starting MyAgent run: {logger.run_id}")
@@ -139,6 +148,13 @@ def main() -> None:
 
             print(f"\n=== MyAgent [{phase}] ===\n")
             print(result["messages"][-1].content)
+
+            # Show actions taken this phase
+            if deps.actions_taken:
+                print(f"\n--- Actions taken in {phase} ---")
+                for action in deps.actions_taken:
+                    print(f"  {action}")
+                deps.actions_taken.clear()
 
             logger.record_phase_end(phase)
 

@@ -165,6 +165,7 @@ def build_tools(deps):
         if message_id not in deps.seen_email_ids:
             return f"Not marked: {message_id!r} is not one of the new school emails you listed this run."
         _mark_read(deps, message_id)
+        deps.actions_taken.append(f"✓ Email marked as read")
         return f"Marked {message_id} as read."
 
     @tool
@@ -232,9 +233,11 @@ def build_tools(deps):
     def create_calendar_event(title: str, start_iso: str, end_iso: str, description: str = "") -> str:
         """Create a real calendar event. Only call this after checking for
         conflicts with check_calendar_conflict."""
-        return calendar_tool.create_event(
+        result = calendar_tool.create_event(
             deps.calendar_service, deps.calendar_id, title, start_iso, end_iso, description, source_agent="MyAgent"
         )
+        deps.actions_taken.append(f"📅 Event created: {title}")
+        return result
 
     @tool
     def queue_email_for_approval(to: str, subject: str, body: str) -> str:
@@ -248,6 +251,7 @@ def build_tools(deps):
             priority="high",
             priority_reason="Email reply pending your approval before sending",
         )
+        deps.actions_taken.append(f"✉️ Email queued: to {to} - {subject}")
         return result
 
     @tool
@@ -284,6 +288,8 @@ def build_tools(deps):
 
         task_id = deps.task_log.log_task(description, due_date, priority, google_task_id, priority_reason)
         where = "added to My Tasks" if google_task_id else "logged locally"
+        priority_emoji = {"high": "🔴", "medium": "🟠", "low": "🟢"}.get(priority, "⚪")
+        deps.actions_taken.append(f"{priority_emoji} Task logged: {description}")
         return f"Task {task_id} {where} ({priority} priority, due {due_date or 'no date'})."
 
     @tool
@@ -303,6 +309,8 @@ def build_tools(deps):
                 tasks_tool.complete_task(deps.tasks_service, google_task_id)
             except Exception as e:
                 print(f"Warning: could not complete task in Google Tasks: {e}")
+        if done:
+            deps.actions_taken.append(f"✓ Task completed")
         return done
 
     @tool
@@ -310,7 +318,9 @@ def build_tools(deps):
         """Record, in one line, something that actually got accomplished —
         by you or evidenced in email. Call this as things get resolved, not
         only when asked for a summary."""
-        return deps.task_log.log_achievement(description)
+        result = deps.task_log.log_achievement(description)
+        deps.actions_taken.append(f"✓ Achievement: {description}")
+        return result
 
     @tool
     def list_recent_achievements(days: int = 1) -> list[dict]:
