@@ -143,6 +143,9 @@ def main() -> None:
             logger.record_phase_end(phase)
 
             if phase == "triage":
+                # Mark all reviewed emails as reviewed (whether the agent acted on them or not)
+                for message_id in deps.seen_email_ids:
+                    deps.task_log.mark_email_reviewed(message_id)
                 _google_tasks_step("sync tasks to My Tasks", deps.tasks_service, lambda: sync_unsynced_tasks(deps))
             if phase in SUMMARY_TASK_FOR_PHASE:
                 kind = SUMMARY_TASK_FOR_PHASE[phase]

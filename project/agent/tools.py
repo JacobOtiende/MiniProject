@@ -141,14 +141,19 @@ def build_tools(deps):
     def list_new_school_emails() -> list[dict]:
         """List unread school emails that have arrived since you last checked.
         Use this to find new items needing triage (classify, decide on an
-        action, act on it)."""
+        action, act on it). Only shows emails you haven't reviewed before."""
         if deps.mode == "demo":
             emails = deps.email_store.fetch_new()
         else:
             emails = gmail_tool.fetch_new_school_emails(deps.gmail_service, deps.school_sender_allowlist)
+
+        # Filter out emails that were already reviewed (even if still unread)
+        reviewed_ids = deps.task_log.get_reviewed_email_ids()
+        new_emails = [e for e in emails if e.message_id not in reviewed_ids]
+
         # Only these can be marked read — the agent can't touch anything else in the inbox.
-        deps.seen_email_ids.update(e.message_id for e in emails)
-        return [_serialize(e) for e in emails]
+        deps.seen_email_ids.update(e.message_id for e in new_emails)
+        return [_serialize(e) for e in new_emails]
 
     @tool
     def mark_email_read(message_id: str) -> str:

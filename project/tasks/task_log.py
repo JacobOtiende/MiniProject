@@ -25,10 +25,14 @@ class TaskLog:
         self._lock = threading.RLock()  # parallel tool calls share this log
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         if not os.path.exists(path):
-            self._save({"tasks": {}, "achievements": {}})
+            self._save({"tasks": {}, "achievements": {}, "reviewed_email_ids": []})
 
     def _load(self) -> dict[str, Any]:
-        return jsonstore.load(self.path, lambda: {"tasks": {}, "achievements": {}})
+        data = jsonstore.load(self.path, lambda: {"tasks": {}, "achievements": {}, "reviewed_email_ids": []})
+        # Backward compatibility: add reviewed_email_ids if missing
+        if "reviewed_email_ids" not in data:
+            data["reviewed_email_ids"] = []
+        return data
 
     def _save(self, data: dict[str, Any]) -> None:
         jsonstore.save(self.path, data)
@@ -102,3 +106,18 @@ class TaskLog:
             if logged_at >= cutoff:
                 recent.append({"achievement_id": k, **v})
         return recent
+
+    # --- reviewed emails ---
+
+    def mark_email_reviewed(self, message_id: str) -> None:
+        """Mark an email as reviewed so it won't be shown again in triage."""
+        with self._lock:
+            data = self._load()
+            if message_id not in data["reviewed_email_ids"]:
+                data["reviewed_email_ids"].append(message_id)
+                self._save(data)
+
+    def get_reviewed_email_ids(self) -> set[str]:
+        """Return the set of email IDs that have been reviewed."""
+        data = self._load()
+        return set(data.get("reviewed_email_ids", []))
