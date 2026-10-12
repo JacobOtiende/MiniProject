@@ -31,3 +31,6 @@ Thumbs.db
 # Project-specific
 project/data/pending_approvals.json
 project/.env
+
+# Run logs (DEBUG output; may include request details)
+project/logs/
