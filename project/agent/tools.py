@@ -241,7 +241,14 @@ def build_tools(deps):
         """Draft an email reply and queue it for the parent's explicit
         approval. This is the ONLY way a reply can ever be sent — there is
         no tool that sends directly, and you must never claim otherwise."""
-        return deps.approval_queue.enqueue({"to": to, "subject": subject, "body": body})
+        result = deps.approval_queue.enqueue({"to": to, "subject": subject, "body": body})
+        # Log a task to remind parent to review and send the email
+        deps.task_log.log_task(
+            description=f"Review and send email to {to}: {subject}",
+            priority="high",
+            priority_reason="Email reply pending your approval before sending",
+        )
+        return result
 
     @tool
     def log_task(
