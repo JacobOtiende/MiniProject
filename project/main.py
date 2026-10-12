@@ -23,7 +23,7 @@ from langchain_openai import ChatOpenAI
 
 from agent.build_agent import build_agent
 from agent.deps import Deps
-from agent.tools import mark_remaining_emails_read, sync_unsynced_tasks
+from agent.tools import sync_unsynced_tasks
 from approvals.approval_queue import ApprovalQueue, run_red_alert_loop
 from auth.google_auth import build_calendar_service, build_gmail_service, build_tasks_service
 from config import load_settings
@@ -143,18 +143,28 @@ def main() -> None:
             logger.record_phase_end(phase)
 
             if phase == "triage":
-                swept = mark_remaining_emails_read(deps)
-                print(f"\n{len(deps.seen_email_ids)} school email(s) triaged and marked read in Gmail"
-                      + (f" ({swept} the agent hadn't marked itself)." if swept else "."))
                 _google_tasks_step("sync tasks to My Tasks", deps.tasks_service, lambda: sync_unsynced_tasks(deps))
             if phase in SUMMARY_TASK_FOR_PHASE:
                 kind = SUMMARY_TASK_FOR_PHASE[phase]
                 summary = result["messages"][-1].content
-                _google_tasks_step(
-                    f"update the {tasks_tool.SUMMARY_KINDS[kind]} summary task",
-                    deps.tasks_service,
-                    lambda: tasks_tool.upsert_daily_summary(deps.tasks_service, kind, summary, deps.now().date()),
-                )
+                # End-of-day summary: only create after 3pm Central time
+                if kind == "end":
+                    now = deps.now()
+                    central_hour = now.astimezone().replace(tzinfo=None).hour
+                    if central_hour < 15:
+                        print(f"(Skipping end-of-day summary; will create after 3pm Central)")
+                    else:
+                        _google_tasks_step(
+                            f"update the {tasks_tool.SUMMARY_KINDS[kind]} summary task",
+                            deps.tasks_service,
+                            lambda: tasks_tool.upsert_daily_summary(deps.tasks_service, kind, summary, deps.now().date()),
+                        )
+                else:
+                    _google_tasks_step(
+                        f"update the {tasks_tool.SUMMARY_KINDS[kind]} summary task",
+                        deps.tasks_service,
+                        lambda: tasks_tool.upsert_daily_summary(deps.tasks_service, kind, summary, deps.now().date()),
+                    )
 
         print("\n=== MyAgent [review] ===")
         logger.record_phase_start("review")
