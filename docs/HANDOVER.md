@@ -1,12 +1,12 @@
 # MiniProject — Unified School Operations Agent
 
-*Last updated: 2026-09-30*
+*Last updated: 2026-10-12*
 
 ## Current Status
 
 **MiniProject** is a single-agent school operations assistant (harmonized from ChildOps and SingleAgentOps). One command, `python main.py`, runs the whole daily cycle: triage new school email (calendar events, Google Tasks, reply drafts), write a start-of-day briefing and an end-of-day wrap-up (saved as two daily summary tasks), mark handled email read, and walk through drafts awaiting approval.
 
-**Health:** 24/24 tests pass. Live mode runs against real Gmail and Calendar. Google Tasks is built and tested with fakes but blocked live (API not enabled). Observability (logging, token tracking, tool tracing) is fully integrated. GitHub: https://github.com/JacobOtiende/MiniProject
+**Health:** 24/24 tests pass. Live mode runs against real Gmail, Calendar, and Tasks. All phases complete without context-length overflow (see fix below). Observability (logging, token tracking, tool tracing) is fully integrated. GitHub: https://github.com/JacobOtiende/MiniProject
 
 ---
 
@@ -22,12 +22,13 @@
 - ✅ OAuth auto re-consent when a scope is added (`gmail.readonly`, `gmail.modify`, `calendar`, `tasks`)
 - ✅ `data/task_log.json` untracked from git
 - ✅ Observability: RunLogger, TokenUsageTracker, ToolCallTracer with full integration into main.py; logs tool calls, per-phase token usage, cost breakdown; four output files per run (agent.log, metrics.json, tool_calls.json, tokens.json)
+- ✅ Context-aware trimming (2026-10-12): list_recent_school_emails returns subject+sender only (no bodies, limit 20); list_open_tasks returns top 15 by priority; list_recent_achievements returns top 20. Eliminates token overflow without breaking triage mode (which still gets full email bodies).
 
 ---
 
 ## In Progress
 
-- _(none)_ ✅ Live validation of Google Tasks completed (2026-10-12)
+- _(none currently)_
 
 ---
 
@@ -42,7 +43,7 @@
 
 ## Blockers
 
-- _(none currently)_ ✅ Google Tasks API is now enabled and working (2026-10-12).
+- _(none currently)_ ✅ Google Tasks API enabled and working; context overflow fixed with result trimming (2026-10-12).
 
 ---
 
@@ -69,7 +70,7 @@
 
 ## Immediate Next Action
 
-✅ **Completed (2026-10-12).** The Google Tasks API is enabled and verified working. All daily cycle phases run successfully. Tasks sync with proper priority labels and due dates. Observability logs are generated every run (agent.log, metrics.json, tool_calls.json, tokens.json).
+✅ **Completed (2026-10-12).** Fixed context overflow (150k tokens > 128k limit) by trimming email bodies and limiting result sets. Agent now completes all four phases (triage, rundown, achievements, review) without token overflow. All 24 tests passing; live run verified working against real Gmail/Calendar/Tasks APIs.
 
 **For the next session:** Optionally schedule two runs per day with Windows Task Scheduler, or tune the agent's priority choices based on live feedback.
 
