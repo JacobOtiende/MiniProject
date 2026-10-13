@@ -170,15 +170,26 @@ def build_tools(deps):
 
     @tool
     def list_recent_school_emails(days: int = 1) -> list[dict]:
-        """List ALL school emails (read or unread) from the last `days` days.
+        """List school emails (read or unread) from the last `days` days.
         Use this for a daily rundown or an achievement summary, where you
-        need the full recent picture rather than only what's still unread."""
+        need the recent picture rather than only what's still unread.
+        Returns subject and sender only (trim bodies to save context)."""
         if deps.mode == "demo":
             since = deps.now() - timedelta(days=days)
-            return [_serialize(e) for e in deps.email_store.fetch_recent(since)]
-        since_iso = (deps.now() - timedelta(days=days)).isoformat()
-        emails = gmail_tool.fetch_recent_school_emails(deps.gmail_service, deps.school_sender_allowlist, since_iso)
-        return [_serialize(e) for e in emails]
+            emails = deps.email_store.fetch_recent(since)
+        else:
+            since_iso = (deps.now() - timedelta(days=days)).isoformat()
+            emails = gmail_tool.fetch_recent_school_emails(deps.gmail_service, deps.school_sender_allowlist, since_iso)
+
+        # Trim to subject + sender only (drop body to save tokens); limit to 20
+        trimmed = []
+        for e in emails[:20]:
+            trimmed.append({
+                "message_id": e.message_id,
+                "sender": e.sender,
+                "subject": e.subject,
+            })
+        return trimmed
 
     @tool
     def list_todays_calendar_events() -> list[dict]:
@@ -294,8 +305,16 @@ def build_tools(deps):
 
     @tool
     def list_open_tasks() -> list[dict]:
-        """List tasks you've previously logged that are still open."""
-        return deps.task_log.list_open_tasks()
+        """List tasks you've previously logged that are still open.
+        Shows highest-priority tasks first (limit 15 to save context)."""
+        all_tasks = deps.task_log.list_open_tasks()
+        # Sort by priority: high > medium > low
+        priority_order = {"high": 0, "medium": 1, "low": 2}
+        sorted_tasks = sorted(
+            all_tasks,
+            key=lambda t: (priority_order.get(t.get("priority"), 3), t.get("due_date") or "9999-12-31")
+        )
+        return sorted_tasks[:15]
 
     @tool
     def mark_task_done(task_id: str) -> bool:
@@ -325,8 +344,9 @@ def build_tools(deps):
     @tool
     def list_recent_achievements(days: int = 1) -> list[dict]:
         """List achievements logged in the last `days` days. Use this to
-        build an achievement summary."""
-        return deps.task_log.list_recent_achievements(days)
+        build an achievement summary (limit 20 to save context)."""
+        all_achievements = deps.task_log.list_recent_achievements(days)
+        return all_achievements[:20]
 
     tools = [
         list_new_school_emails,
